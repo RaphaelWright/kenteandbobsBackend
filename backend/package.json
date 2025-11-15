@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@medusajs/admin-sdk": "2.10.2",
+    "@medusajs/auth-emailpass": "^2.11.3",
     "@medusajs/cli": "2.10.2",
     "@medusajs/dashboard": "2.10.2",
     "@medusajs/draft-order": "^2.10.2",

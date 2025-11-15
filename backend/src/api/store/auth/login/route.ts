@@ -19,18 +19,22 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     const authModuleService: IAuthModuleService = req.scope.resolve(Modules.AUTH);
 
     // Authenticate with emailpass provider
-    const { success, authIdentity } = await authModuleService.authenticate("emailpass", {
+    const authResult = await authModuleService.authenticate("emailpass", {
       body: {
         email,
         password
       }
     } as any) as any;
 
-    if (!success || !authIdentity) {
+    console.log("Auth result:", { success: authResult?.success, hasIdentity: !!authResult?.authIdentity });
+
+    if (!authResult?.success || !authResult?.authIdentity) {
       return res.status(401).json({
         error: "Invalid credentials"
       });
     }
+
+    const { authIdentity } = authResult;
 
     // Set auth session
     req.session.auth_context = {
@@ -51,6 +55,19 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     });
   } catch (error) {
     console.error("Login error:", error);
+    console.error("Error details:", {
+      message: error.message,
+      name: error.name,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+    
+    // If authentication throws an error, it's likely invalid credentials
+    if (error.message?.includes("Invalid") || error.message?.includes("credentials")) {
+      return res.status(401).json({
+        error: "Invalid credentials"
+      });
+    }
+    
     res.status(500).json({
       error: error.message || "Login failed"
     });
