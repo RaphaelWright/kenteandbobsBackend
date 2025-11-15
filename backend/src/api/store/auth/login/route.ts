@@ -8,7 +8,7 @@ import { Modules } from "@medusajs/framework/utils";
  */
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body as { email?: string; password?: string };
 
     if (!email || !password) {
       return res.status(400).json({
@@ -24,7 +24,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         email,
         password
       }
-    });
+    } as any) as any;
 
     if (!success || !authIdentity) {
       return res.status(401).json({

@@ -10,7 +10,7 @@ import { Modules } from "@medusajs/framework/utils";
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   try {
     // Auth context is available from middleware
-    const authContext = req.auth || req.session?.auth_context;
+    const authContext = (req as any).auth || req.session?.auth_context;
 
     if (!authContext) {
       return res.status(401).json({
@@ -23,7 +23,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     // Get user details
     const authIdentity = await authModuleService.retrieveAuthIdentity(
       authContext.auth_identity_id
-    );
+    ) as any;
 
     res.status(200).json({
       message: "This is a protected route - you are authenticated!",
@@ -48,7 +48,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
  */
 export async function PUT(req: MedusaRequest, res: MedusaResponse) {
   try {
-    const authContext = req.auth || req.session?.auth_context;
+    const authContext = (req as any).auth || req.session?.auth_context;
 
     if (!authContext) {
       return res.status(401).json({
@@ -56,7 +56,7 @@ export async function PUT(req: MedusaRequest, res: MedusaResponse) {
       });
     }
 
-    const { name, metadata } = req.body;
+    const { name, metadata } = req.body as { name?: string; metadata?: any };
 
     const authModuleService: IAuthModuleService = req.scope.resolve(Modules.AUTH);
 
@@ -68,8 +68,8 @@ export async function PUT(req: MedusaRequest, res: MedusaResponse) {
           ...metadata,
           name
         }
-      }
-    );
+      } as any
+    ) as any;
 
     res.status(200).json({
       message: "Profile updated successfully",

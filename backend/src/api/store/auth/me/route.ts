@@ -21,7 +21,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     // Retrieve auth identity
     const authIdentity = await authModuleService.retrieveAuthIdentity(
       authContext.auth_identity_id
-    );
+    ) as any;
 
     if (!authIdentity) {
       return res.status(404).json({

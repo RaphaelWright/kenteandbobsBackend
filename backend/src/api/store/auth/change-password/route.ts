@@ -16,7 +16,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       });
     }
 
-    const { current_password, new_password } = req.body;
+    const { current_password, new_password } = req.body as { current_password?: string; new_password?: string };
 
     if (!current_password || !new_password) {
       return res.status(400).json({
@@ -35,7 +35,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     // Get current auth identity
     const authIdentity = await authModuleService.retrieveAuthIdentity(
       authContext.auth_identity_id
-    );
+    ) as any;
 
     // Verify current password by attempting authentication
     const { success } = await authModuleService.authenticate("emailpass", {
@@ -43,7 +43,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         email: authIdentity.entity_id,
         password: current_password
       }
-    });
+    } as any);
 
     if (!success) {
       return res.status(401).json({
@@ -58,7 +58,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         provider_metadata: {
           password: new_password
         }
-      }
+      } as any
     );
 
     res.status(200).json({
