@@ -18,14 +18,26 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
     const authModuleService: IAuthModuleService = req.scope.resolve(Modules.AUTH);
 
-    // Create auth identity with emailpass provider
-    const authIdentity = await authModuleService.createAuthIdentities({
-      provider: "emailpass",
-      entity_id: email,
-      provider_metadata: {
-        password: password
+    // Register with emailpass provider (this will hash the password)
+    const authResult = await authModuleService.register("emailpass", {
+      body: {
+        email,
+        password
       }
     } as any) as any;
+
+    console.log("Registration result:", { 
+      success: authResult?.success, 
+      hasIdentity: !!authResult?.authIdentity 
+    });
+
+    if (!authResult?.success || !authResult?.authIdentity) {
+      return res.status(500).json({
+        error: "Failed to create authentication identity"
+      });
+    }
+
+    const authIdentity = authResult.authIdentity;
 
     res.status(201).json({
       message: "Registration successful",

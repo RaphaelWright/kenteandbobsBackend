@@ -39,32 +39,37 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     const authModuleService: IAuthModuleService = req.scope.resolve(Modules.AUTH);
     const customerModuleService: ICustomerModuleService = req.scope.resolve(Modules.CUSTOMER);
 
-    // Check if auth identity with this email already exists
-    try {
-      const { success } = await authModuleService.authenticate("emailpass", {
-        body: {
-          email,
-          password: "test" // Just checking existence
-        }
-      } as any) as any;
-      
-      if (success) {
-        return res.status(409).json({
-          error: "An account with this email already exists"
-        });
-      }
-    } catch (err) {
-      // If authentication fails, user doesn't exist - continue with signup
+    // Check if customer with this email already exists
+    const existingCustomers = await customerModuleService.listCustomers({
+      email
+    });
+
+    if (existingCustomers.length > 0) {
+      return res.status(409).json({
+        error: "An account with this email already exists"
+      });
     }
 
-    // Create auth identity with emailpass provider
-    const authIdentity = await (authModuleService as any).createAuthIdentities({
-      provider: "emailpass",
-      entity_id: email,
-      provider_metadata: {
-        password: password
+    // Register with emailpass provider (this will hash the password)
+    const authResult = await authModuleService.register("emailpass", {
+      body: {
+        email,
+        password
       }
+    } as any) as any;
+
+    console.log("Registration result:", { 
+      success: authResult?.success, 
+      hasIdentity: !!authResult?.authIdentity 
     });
+
+    if (!authResult?.success || !authResult?.authIdentity) {
+      return res.status(500).json({
+        error: "Failed to create authentication identity"
+      });
+    }
+
+    const authIdentity = authResult.authIdentity;
 
     // Create customer record and link to auth identity
     const customer = await customerModuleService.createCustomers({
