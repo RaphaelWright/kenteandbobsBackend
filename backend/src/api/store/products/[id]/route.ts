@@ -79,23 +79,38 @@ export async function GET(
       }
     }
 
-    // Fetch reviews for this product
-    const reviews = await reviewModuleService.listReviews({
-      product_id: id,
-      status: "approved",
-    });
-
-    const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
-    const averageRating = reviews.length > 0 ? totalRating / reviews.length : 0;
-
-    // Calculate rating distribution
-    const ratingDistribution = {
-      5: reviews.filter((r) => r.rating === 5).length,
-      4: reviews.filter((r) => r.rating === 4).length,
-      3: reviews.filter((r) => r.rating === 3).length,
-      2: reviews.filter((r) => r.rating === 2).length,
-      1: reviews.filter((r) => r.rating === 1).length,
+    // Fetch reviews for this product (optional - if review table doesn't exist, skip)
+    let reviews: any[] = [];
+    let averageRating = 0;
+    let ratingDistribution = {
+      5: 0,
+      4: 0,
+      3: 0,
+      2: 0,
+      1: 0,
     };
+
+    try {
+      reviews = await reviewModuleService.listReviews({
+        product_id: id,
+        status: "approved",
+      });
+
+      const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+      averageRating = reviews.length > 0 ? totalRating / reviews.length : 0;
+
+      // Calculate rating distribution
+      ratingDistribution = {
+        5: reviews.filter((r) => r.rating === 5).length,
+        4: reviews.filter((r) => r.rating === 4).length,
+        3: reviews.filter((r) => r.rating === 3).length,
+        2: reviews.filter((r) => r.rating === 2).length,
+        1: reviews.filter((r) => r.rating === 1).length,
+      };
+    } catch (error) {
+      console.error("Review module error (table may not exist yet):", error.message);
+      // Continue without reviews - this is non-critical
+    }
 
     // Calculate total quantity from all variants
     const totalQuantity = product.variants?.reduce((sum: number, variant: any) => {

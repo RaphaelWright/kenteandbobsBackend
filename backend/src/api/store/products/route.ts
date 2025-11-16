@@ -99,38 +99,43 @@ export async function GET(
       }
     }
 
-    // Fetch reviews for all products
+    // Fetch reviews for all products (optional - if review table doesn't exist, skip)
     const productIds = products.map((p: any) => p.id);
     let reviewsByProduct: Record<string, any> = {};
     
     if (productIds.length > 0) {
-      const allReviews = await reviewModuleService.listReviews({
-        product_id: productIds,
-        status: "approved",
-      });
+      try {
+        const allReviews = await reviewModuleService.listReviews({
+          product_id: productIds,
+          status: "approved",
+        });
 
-      // Group reviews by product_id and calculate stats
-      reviewsByProduct = allReviews.reduce((acc: any, review: any) => {
-        if (!acc[review.product_id]) {
-          acc[review.product_id] = {
-            reviews: [],
-            total: 0,
-            average: 0,
-          };
-        }
-        acc[review.product_id].reviews.push(review);
-        return acc;
-      }, {});
+        // Group reviews by product_id and calculate stats
+        reviewsByProduct = allReviews.reduce((acc: any, review: any) => {
+          if (!acc[review.product_id]) {
+            acc[review.product_id] = {
+              reviews: [],
+              total: 0,
+              average: 0,
+            };
+          }
+          acc[review.product_id].reviews.push(review);
+          return acc;
+        }, {});
 
-      // Calculate averages
-      Object.keys(reviewsByProduct).forEach((productId) => {
-        const reviews = reviewsByProduct[productId].reviews;
-        const totalRating = reviews.reduce((sum: number, r: any) => sum + r.rating, 0);
-        reviewsByProduct[productId].total = reviews.length;
-        reviewsByProduct[productId].average = reviews.length > 0 
-          ? Math.round((totalRating / reviews.length) * 10) / 10 
-          : 0;
-      });
+        // Calculate averages
+        Object.keys(reviewsByProduct).forEach((productId) => {
+          const reviews = reviewsByProduct[productId].reviews;
+          const totalRating = reviews.reduce((sum: number, r: any) => sum + r.rating, 0);
+          reviewsByProduct[productId].total = reviews.length;
+          reviewsByProduct[productId].average = reviews.length > 0 
+            ? Math.round((totalRating / reviews.length) * 10) / 10 
+            : 0;
+        });
+      } catch (error) {
+        console.error("Review module error (table may not exist yet):", error.message);
+        // Continue without reviews - this is non-critical
+      }
     }
 
     // Format the response to include all requested features
