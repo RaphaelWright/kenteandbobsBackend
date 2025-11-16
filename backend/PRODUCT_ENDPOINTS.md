@@ -16,7 +16,7 @@ This document describes the product and review endpoints available in the API. A
 
 ### 1. Get All Products
 
-**Endpoint:** `GET /store/products`
+**Endpoint:** `GET pricong fix`
 
 **Description:** Fetch all published products with their details, reviews, and inventory.
 

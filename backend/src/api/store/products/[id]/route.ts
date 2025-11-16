@@ -1,4 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
+import { Modules } from "@medusajs/framework/utils";
 import ReviewModuleService from "../../../../modules/review/service";
 
 /**
@@ -11,10 +12,12 @@ export async function GET(
 ) {
   const query = req.scope.resolve("query");
   const reviewModuleService: ReviewModuleService = req.scope.resolve("reviewModuleService");
+  const pricingModuleService = req.scope.resolve(Modules.PRICING);
   const { id } = req.params;
 
   try {
-    // Pricing context is set by middleware
+    // Get currency from query params
+    const { currency_code = "ghs" } = req.query;
 
     const { data: products } = await query.graph({
       entity: "product",
@@ -30,7 +33,6 @@ export async function GET(
         "updated_at",
         "images.*",
         "variants.*",
-        "variants.calculated_price.*",
         "variants.inventory_items.*",
         "variants.inventory_items.inventory.*",
         "categories.*",
@@ -50,6 +52,32 @@ export async function GET(
     }
 
     const product = products[0];
+
+    // Manually calculate prices using the Pricing Module
+    const variantPriceMap: Record<string, any> = {};
+    
+    if (product.variants && product.variants.length > 0) {
+      for (const variant of product.variants) {
+        try {
+          // Calculate price for this variant with explicit currency
+          const calculatedPrices = await pricingModuleService.calculatePrices(
+            { id: [variant.id] },
+            {
+              context: {
+                currency_code: currency_code as string,
+              },
+            }
+          );
+          
+          if (calculatedPrices && calculatedPrices[variant.id]) {
+            variantPriceMap[variant.id] = calculatedPrices[variant.id];
+          }
+        } catch (error) {
+          console.error(`Error calculating price for variant ${variant.id}:`, error);
+          // Continue without price for this variant
+        }
+      }
+    }
 
     // Fetch reviews for this product
     const reviews = await reviewModuleService.listReviews({
@@ -80,9 +108,9 @@ export async function GET(
       return sum + (inventoryQuantity || 0);
     }, 0) || 0;
 
-    // Get price range from variants
+    // Get price range from variants using manually calculated prices
     const prices = product.variants
-      ?.map((v: any) => v.calculated_price?.calculated_amount)
+      ?.map((v: any) => variantPriceMap[v.id]?.calculated_amount)
       .filter((p: any) => p != null);
     
     const minPrice = prices?.length ? Math.min(...prices) : null;
@@ -103,7 +131,7 @@ export async function GET(
       price: {
         min: minPrice,
         max: maxPrice,
-        currency: product.variants?.[0]?.calculated_price?.currency_code,
+        currency: currency_code as string,
       },
       categories: product.categories?.map((cat: any) => ({
         id: cat.id,
@@ -126,8 +154,8 @@ export async function GET(
         title: variant.title,
         sku: variant.sku,
         barcode: variant.barcode,
-        price: variant.calculated_price?.calculated_amount,
-        currency: variant.calculated_price?.currency_code,
+        price: variantPriceMap[variant.id]?.calculated_amount,
+        currency: currency_code as string,
         inventory_quantity: variant.inventory_items?.reduce(
           (sum: number, item: any) => sum + (item.inventory?.stocked_quantity || 0),
           0
