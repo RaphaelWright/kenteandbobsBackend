@@ -27,47 +27,55 @@ export async function GET(
       category_id,
       search,
       order = "created_at",
+      currency_code = "ghs", // Default to Ghana Cedis
     } = req.query;
 
     // Build the query for products
-    const { data: products, metadata } = await query.graph({
-      entity: "product",
-      fields: [
-        "id",
-        "title",
-        "handle",
-        "description",
-        "subtitle",
-        "thumbnail",
-        "status",
-        "created_at",
-        "updated_at",
-        "images.*",
-        "variants.*",
-        "variants.calculated_price.*",
-        "variants.inventory_items.*",
-        "variants.inventory_items.inventory.*",
-        "categories.*",
-        "tags.*",
-      ],
-      filters: {
-        ...(category_id && {
-          categories: {
-            id: category_id,
-          },
-        }),
-        ...(search && {
-          title: {
-            $ilike: `%${search}%`,
-          },
-        }),
-        status: "published", // Only show published products
+    const { data: products, metadata } = await query.graph(
+      {
+        entity: "product",
+        fields: [
+          "id",
+          "title",
+          "handle",
+          "description",
+          "subtitle",
+          "thumbnail",
+          "status",
+          "created_at",
+          "updated_at",
+          "images.*",
+          "variants.*",
+          "variants.calculated_price.*",
+          "variants.inventory_items.*",
+          "variants.inventory_items.inventory.*",
+          "categories.*",
+          "tags.*",
+        ],
+        filters: {
+          ...(category_id && {
+            categories: {
+              id: category_id,
+            },
+          }),
+          ...(search && {
+            title: {
+              $ilike: `%${search}%`,
+            },
+          }),
+          status: "published", // Only show published products
+        },
+        pagination: {
+          skip: Number(offset),
+          take: Number(limit),
+        },
       },
-      pagination: {
-        skip: Number(offset),
-        take: Number(limit),
-      },
-    });
+      {
+        context: {
+          currency_code: currency_code as string,
+        },
+      }
+    );
 
     // Fetch reviews for all products
     const productIds = products.map((p: any) => p.id);
