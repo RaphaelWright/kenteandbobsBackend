@@ -8,7 +8,7 @@ import ReviewModuleService from "../../../../../modules/review/service";
 export async function POST(
   req: MedusaRequest,
   res: MedusaResponse
-): Promise<void> {
+) {
   const { id } = req.params;
 
   try {
@@ -22,7 +22,8 @@ export async function POST(
       });
     }
 
-    const updatedReview = await reviewModuleService.updateReviews(id, {
+    const updatedReview = await reviewModuleService.updateReviews({
+      id,
       helpful_count: review.helpful_count + 1,
     });
 

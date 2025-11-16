@@ -8,7 +8,7 @@ import ReviewModuleService from "../../../../modules/review/service";
 export async function GET(
   req: MedusaRequest,
   res: MedusaResponse
-): Promise<void> {
+) {
   const query = req.scope.resolve("query");
   const reviewModuleService: ReviewModuleService = req.scope.resolve("reviewModuleService");
   const { id } = req.params;

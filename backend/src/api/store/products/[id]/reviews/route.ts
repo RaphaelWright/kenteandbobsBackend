@@ -8,7 +8,7 @@ import ReviewModuleService from "../../../../../modules/review/service";
 export async function GET(
   req: MedusaRequest,
   res: MedusaResponse
-): Promise<void> {
+) {
   const { id } = req.params;
   const { limit = 20, offset = 0, sort = "created_at:desc" } = req.query;
 
@@ -66,9 +66,15 @@ export async function GET(
 export async function POST(
   req: MedusaRequest,
   res: MedusaResponse
-): Promise<void> {
+) {
   const { id } = req.params;
-  const { rating, title, comment, customer_name, customer_email } = req.body;
+  const { rating, title, comment, customer_name, customer_email } = req.body as {
+    rating: number;
+    title?: string;
+    comment: string;
+    customer_name: string;
+    customer_email?: string;
+  };
 
   // Validation
   if (!rating || !comment || !customer_name) {
@@ -88,7 +94,7 @@ export async function POST(
     const reviewModuleService: ReviewModuleService = req.scope.resolve("reviewModuleService");
     
     // Check if customer is authenticated
-    const customer_id = req.auth?.actor_id || null;
+    const customer_id = (req as any).auth?.actor_id || null;
 
     const review = await reviewModuleService.createReviews({
       product_id: id,

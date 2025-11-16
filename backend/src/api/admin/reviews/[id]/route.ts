@@ -8,7 +8,7 @@ import ReviewModuleService from "../../../../modules/review/service";
 export async function GET(
   req: MedusaRequest,
   res: MedusaResponse
-): Promise<void> {
+) {
   const reviewModuleService: ReviewModuleService = req.scope.resolve("reviewModuleService");
   const { id } = req.params;
 
@@ -38,10 +38,15 @@ export async function GET(
 export async function PUT(
   req: MedusaRequest,
   res: MedusaResponse
-): Promise<void> {
+) {
   const reviewModuleService: ReviewModuleService = req.scope.resolve("reviewModuleService");
   const { id } = req.params;
-  const { status, rating, title, comment } = req.body;
+  const { status, rating, title, comment } = req.body as {
+    status?: string;
+    rating?: number;
+    title?: string;
+    comment?: string;
+  };
 
   try {
     const [existingReview] = await reviewModuleService.listReviews({ id });
@@ -58,7 +63,10 @@ export async function PUT(
     if (title !== undefined) updateData.title = title;
     if (comment) updateData.comment = comment;
 
-    const updatedReview = await reviewModuleService.updateReviews(id, updateData);
+    const updatedReview = await reviewModuleService.updateReviews({
+      id,
+      ...updateData,
+    });
 
     res.json({
       review: updatedReview,
@@ -80,7 +88,7 @@ export async function PUT(
 export async function DELETE(
   req: MedusaRequest,
   res: MedusaResponse
-): Promise<void> {
+) {
   const reviewModuleService: ReviewModuleService = req.scope.resolve("reviewModuleService");
   const { id } = req.params;
 
