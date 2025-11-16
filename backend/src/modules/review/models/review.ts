@@ -16,8 +16,6 @@ const Review = model.define("review", {
   verified_purchase: model.boolean().default(false),
   status: model.enum(["pending", "approved", "rejected"]).default("pending"),
   helpful_count: model.number().default(0),
-  created_at: model.dateTime(),
-  updated_at: model.dateTime(),
 });
 
 export default Review;
