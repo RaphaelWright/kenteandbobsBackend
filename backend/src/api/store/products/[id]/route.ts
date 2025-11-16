@@ -17,34 +17,37 @@ export async function GET(
     // Get currency_code from query params, default to Ghana Cedis
     const { currency_code = "ghs" } = req.query;
 
-    const { data: products } = await query.graph(
-      {
-        entity: "product",
-        fields: [
-          "id",
-          "title",
-          "handle",
-          "description",
-          "subtitle",
-          "thumbnail",
-          "status",
-          "created_at",
-          "updated_at",
-          "images.*",
-          "variants.*",
-          "variants.calculated_price.*",
-          "variants.inventory_items.*",
-          "variants.inventory_items.inventory.*",
-          "categories.*",
-          "tags.*",
-          "options.*",
-        ],
-        filters: {
-          id,
-          status: "published",
-        },
-      }
-    );
+    // Set pricing context on the request
+    (req as any).pricingContext = {
+      currency_code: currency_code as string,
+    };
+
+    const { data: products } = await query.graph({
+      entity: "product",
+      fields: [
+        "id",
+        "title",
+        "handle",
+        "description",
+        "subtitle",
+        "thumbnail",
+        "status",
+        "created_at",
+        "updated_at",
+        "images.*",
+        "variants.*",
+        "variants.calculated_price.*",
+        "variants.inventory_items.*",
+        "variants.inventory_items.inventory.*",
+        "categories.*",
+        "tags.*",
+        "options.*",
+      ],
+      filters: {
+        id,
+        status: "published",
+      },
+    });
 
     if (!products || products.length === 0) {
       return res.status(404).json({

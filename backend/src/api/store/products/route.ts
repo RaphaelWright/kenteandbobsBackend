@@ -30,52 +30,50 @@ export async function GET(
       currency_code = "ghs", // Default to Ghana Cedis
     } = req.query;
 
+    // Set pricing context on the request
+    (req as any).pricingContext = {
+      currency_code: currency_code as string,
+    };
+
     // Build the query for products
-    const { data: products, metadata } = await query.graph(
-      {
-        entity: "product",
-        fields: [
-          "id",
-          "title",
-          "handle",
-          "description",
-          "subtitle",
-          "thumbnail",
-          "status",
-          "created_at",
-          "updated_at",
-          "images.*",
-          "variants.*",
-          "variants.calculated_price.*",
-          "variants.inventory_items.*",
-          "variants.inventory_items.inventory.*",
-          "categories.*",
-          "tags.*",
-        ],
-        filters: {
-          ...(category_id && {
-            categories: {
-              id: category_id,
-            },
-          }),
-          ...(search && {
-            title: {
-              $ilike: `%${search}%`,
-            },
-          }),
-          status: "published", // Only show published products
-        },
-        pagination: {
-          skip: Number(offset),
-          take: Number(limit),
-        },
+    const { data: products, metadata } = await query.graph({
+      entity: "product",
+      fields: [
+        "id",
+        "title",
+        "handle",
+        "description",
+        "subtitle",
+        "thumbnail",
+        "status",
+        "created_at",
+        "updated_at",
+        "images.*",
+        "variants.*",
+        "variants.calculated_price.*",
+        "variants.inventory_items.*",
+        "variants.inventory_items.inventory.*",
+        "categories.*",
+        "tags.*",
+      ],
+      filters: {
+        ...(category_id && {
+          categories: {
+            id: category_id,
+          },
+        }),
+        ...(search && {
+          title: {
+            $ilike: `%${search}%`,
+          },
+        }),
+        status: "published", // Only show published products
       },
-      {
-        context: {
-          currency_code: currency_code as string,
-        },
-      }
-    );
+      pagination: {
+        skip: Number(offset),
+        take: Number(limit),
+      },
+    });
 
     // Fetch reviews for all products
     const productIds = products.map((p: any) => p.id);
