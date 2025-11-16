@@ -51,6 +51,10 @@ const medusaConfig = {
   },
   modules: [
     {
+      resolve: './src/modules/review',
+      key: 'reviewModuleService',
+    },
+    {
       key: Modules.AUTH,
       resolve: '@medusajs/auth',
       options: {
