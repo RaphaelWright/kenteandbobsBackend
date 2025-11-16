@@ -27,13 +27,9 @@ export async function GET(
       category_id,
       search,
       order = "created_at",
-      currency_code = "ghs", // Default to Ghana Cedis
     } = req.query;
 
-    // Set pricing context on the request
-    (req as any).pricingContext = {
-      currency_code: currency_code as string,
-    };
+    // Pricing context is set by middleware
 
     // Build the query for products
     const { data: products, metadata } = await query.graph({

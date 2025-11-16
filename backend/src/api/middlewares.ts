@@ -33,6 +33,22 @@ export const optionalAuthenticate = async (req, res, next) => {
   next();
 };
 
+/**
+ * Pricing context middleware
+ * Sets the currency_code for price calculations
+ */
+export const setPricingContext = async (req, res, next) => {
+  // Get currency_code from query params or default to GHS
+  const currency_code = (req.query?.currency_code as string) || "ghs";
+  
+  // Set pricing context that Medusa can use
+  req.pricingContext = {
+    currency_code: currency_code.toLowerCase(),
+  };
+  
+  next();
+};
+
 export default defineMiddlewares({
   routes: [
     {
@@ -42,6 +58,10 @@ export default defineMiddlewares({
     {
       matcher: "/store/protected/*",
       middlewares: [authenticate]
+    },
+    {
+      matcher: "/store/products*",
+      middlewares: [setPricingContext]
     }
   ]
 });
