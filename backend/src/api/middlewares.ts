@@ -60,6 +60,10 @@ export default defineMiddlewares({
       middlewares: [authenticate]
     },
     {
+      matcher: "/store/orders*",
+      middlewares: [authenticate]
+    },
+    {
       matcher: "/store/products*",
       middlewares: [setPricingContext]
     }

@@ -1,0 +1,217 @@
+import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
+import { IOrderModuleService, ICustomerModuleService } from "@medusajs/framework/types";
+import { Modules } from "@medusajs/framework/utils";
+
+/**
+ * GET /store/orders/:id
+ * Fetch a specific order for the authenticated customer
+ * Includes full order details, items, shipping, payments, and fulfillments
+ */
+export async function GET(
+  req: MedusaRequest,
+  res: MedusaResponse
+) {
+  try {
+    // Check authentication
+    const authContext = req.session?.auth_context;
+
+    if (!authContext || !authContext.auth_identity_id) {
+      return res.status(401).json({
+        error: "Not authenticated"
+      });
+    }
+
+    // Get order ID from params
+    const orderId = req.params.id;
+
+    if (!orderId) {
+      return res.status(400).json({
+        error: "Order ID is required"
+      });
+    }
+
+    // Get the customer email from auth identity
+    const customerEmail = authContext.actor_id;
+
+    if (!customerEmail) {
+      return res.status(400).json({
+        error: "Customer email not found"
+      });
+    }
+
+    // Resolve services
+    const orderModuleService: IOrderModuleService = req.scope.resolve(Modules.ORDER);
+    const customerModuleService: ICustomerModuleService = req.scope.resolve(Modules.CUSTOMER);
+    const query = req.scope.resolve("query");
+
+    // Find customer by email
+    const customers = await customerModuleService.listCustomers({
+      email: customerEmail
+    });
+
+    if (!customers || customers.length === 0) {
+      return res.status(404).json({
+        error: "Customer not found"
+      });
+    }
+
+    const customer = customers[0];
+
+    // Fetch the specific order
+    const { data: orders } = await query.graph({
+      entity: "order",
+      fields: [
+        "id",
+        "status",
+        "display_id",
+        "version",
+        "email",
+        "customer_id",
+        "currency_code",
+        "total",
+        "subtotal",
+        "tax_total",
+        "shipping_total",
+        "discount_total",
+        "created_at",
+        "updated_at",
+        "canceled_at",
+        "items.*",
+        "items.product.*",
+        "items.product.images.*",
+        "items.variant.*",
+        "shipping_address.*",
+        "billing_address.*",
+        "shipping_methods.*",
+        "payment_collections.*",
+        "payment_collections.payments.*",
+        "fulfillments.*",
+        "fulfillments.items.*",
+      ],
+      filters: {
+        id: orderId,
+      },
+    });
+
+    if (!orders || orders.length === 0) {
+      return res.status(404).json({
+        error: "Order not found"
+      });
+    }
+
+    const order = orders[0];
+
+    // Verify that the order belongs to the authenticated customer
+    if (order.customer_id !== customer.id) {
+      return res.status(403).json({
+        error: "Unauthorized - This order does not belong to you"
+      });
+    }
+
+    // Format the order for response
+    const formattedOrder = {
+      id: order.id,
+      display_id: order.display_id,
+      status: order.status,
+      email: order.email,
+      currency_code: order.currency_code,
+      total: order.total,
+      subtotal: order.subtotal,
+      tax_total: order.tax_total,
+      shipping_total: order.shipping_total,
+      discount_total: order.discount_total,
+      items: order.items?.map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        subtitle: item.subtitle,
+        thumbnail: item.thumbnail,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total: item.total,
+        product_id: item.product_id,
+        variant_id: item.variant_id,
+        product: item.product ? {
+          id: item.product.id,
+          title: item.product.title,
+          handle: item.product.handle,
+          thumbnail: item.product.thumbnail,
+          images: item.product.images?.map((img: any) => ({
+            id: img.id,
+            url: img.url,
+          })) || [],
+        } : null,
+        variant: item.variant ? {
+          id: item.variant.id,
+          title: item.variant.title,
+          sku: item.variant.sku,
+        } : null,
+      })) || [],
+      shipping_address: order.shipping_address ? {
+        id: order.shipping_address.id,
+        first_name: order.shipping_address.first_name,
+        last_name: order.shipping_address.last_name,
+        address_1: order.shipping_address.address_1,
+        address_2: order.shipping_address.address_2,
+        city: order.shipping_address.city,
+        province: order.shipping_address.province,
+        postal_code: order.shipping_address.postal_code,
+        country_code: order.shipping_address.country_code,
+        phone: order.shipping_address.phone,
+      } : null,
+      billing_address: order.billing_address ? {
+        id: order.billing_address.id,
+        first_name: order.billing_address.first_name,
+        last_name: order.billing_address.last_name,
+        address_1: order.billing_address.address_1,
+        address_2: order.billing_address.address_2,
+        city: order.billing_address.city,
+        province: order.billing_address.province,
+        postal_code: order.billing_address.postal_code,
+        country_code: order.billing_address.country_code,
+        phone: order.billing_address.phone,
+      } : null,
+      shipping_methods: order.shipping_methods?.map((method: any) => ({
+        id: method.id,
+        name: method.name,
+        amount: method.amount,
+      })) || [],
+      payment_collections: order.payment_collections?.map((collection: any) => ({
+        id: collection.id,
+        status: collection.status,
+        amount: collection.amount,
+        payments: collection.payments?.map((payment: any) => ({
+          id: payment.id,
+          amount: payment.amount,
+          currency_code: payment.currency_code,
+          provider_id: payment.provider_id,
+        })) || [],
+      })) || [],
+      fulfillments: order.fulfillments?.map((fulfillment: any) => ({
+        id: fulfillment.id,
+        created_at: fulfillment.created_at,
+        items: fulfillment.items?.map((item: any) => ({
+          id: item.id,
+          quantity: item.quantity,
+          line_item_id: item.line_item_id,
+        })) || [],
+      })) || [],
+      payment_status: order.payment_collections?.[0]?.status || "not_paid",
+      fulfillment_status: order.fulfillments?.length > 0 ? "fulfilled" : "not_fulfilled",
+      created_at: order.created_at,
+      updated_at: order.updated_at,
+      canceled_at: order.canceled_at,
+    };
+
+    res.status(200).json({
+      order: formattedOrder
+    });
+
+  } catch (error) {
+    console.error("Error fetching order:", error);
+    res.status(500).json({
+      error: "Failed to fetch order",
+      message: error.message,
+    });
+  }
+}
+

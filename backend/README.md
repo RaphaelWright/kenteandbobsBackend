@@ -8,6 +8,12 @@ Video instructions: https://youtu.be/PPxenu7IjGM
   - If connecting to a new database, for example a local one, run `pnpm ib` or `npm run ib` to seed the database.
 - `pnpm dev` or `npm run dev`
 
+### API Documentation
+- [Product Endpoints](./PRODUCT_ENDPOINTS.md) - Documentation for product-related endpoints
+- [Orders Endpoints](./ORDERS_ENDPOINTS.md) - Documentation for customer order endpoints
+- [Quick Start - Authentication](./QUICK_START_AUTH.md) - Authentication guide
+- [Quick Start - Products](./QUICK_START_PRODUCTS.md) - Products guide
+
 ### requirements
 - **postgres database** (Automatic setup when using the Railway template)
 - **redis** (Automatic setup when using the Railway template) - fallback to simulated redis.
