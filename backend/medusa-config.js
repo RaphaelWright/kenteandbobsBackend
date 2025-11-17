@@ -21,7 +21,10 @@ import {
   MINIO_SECRET_KEY,
   MINIO_BUCKET,
   MEILISEARCH_HOST,
-  MEILISEARCH_ADMIN_KEY
+  MEILISEARCH_ADMIN_KEY,
+  GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET,
+  GOOGLE_CALLBACK_URL
 } from 'lib/constants';
 
 loadEnv(process.env.NODE_ENV, process.cwd());
@@ -65,7 +68,16 @@ const medusaConfig = {
             options: {
               // Email/password authentication configuration
             }
-          }
+          },
+          ...(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET && GOOGLE_CALLBACK_URL ? [{
+            resolve: '@medusajs/auth-google',
+            id: 'google',
+            options: {
+              clientId: GOOGLE_CLIENT_ID,
+              clientSecret: GOOGLE_CLIENT_SECRET,
+              callbackUrl: GOOGLE_CALLBACK_URL,
+            }
+          }] : [])
         ]
       }
     },

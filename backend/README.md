@@ -13,6 +13,8 @@ Video instructions: https://youtu.be/PPxenu7IjGM
 - [Orders Endpoints](./ORDERS_ENDPOINTS.md) - Documentation for customer order endpoints
 - [Quick Start - Authentication](./QUICK_START_AUTH.md) - Authentication guide
 - [Quick Start - Products](./QUICK_START_PRODUCTS.md) - Products guide
+- [Google OAuth Quick Start](./GOOGLE_OAUTH_QUICK_START.md) - Get Google OAuth working in 5 minutes ⚡
+- [Google OAuth Setup](./GOOGLE_OAUTH_SETUP.md) - Complete guide to implementing Google OAuth
 
 ### requirements
 - **postgres database** (Automatic setup when using the Railway template)
