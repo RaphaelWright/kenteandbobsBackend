@@ -33,9 +33,9 @@ export async function GET(
     } = req.query;
 
     // Ensure currency_code is a string (handle array or undefined)
-    const currencyCode = Array.isArray(currency_code) 
-      ? currency_code[0] || "ghs" 
-      : currency_code || "ghs";
+    const currencyCode: string = Array.isArray(currency_code) 
+      ? (currency_code[0] as string) || "ghs" 
+      : (currency_code as string) || "ghs";
 
     // Build the query for products with variants and their price-related data
     const { data: products, metadata } = await query.graph({

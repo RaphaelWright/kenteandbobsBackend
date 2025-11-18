@@ -20,9 +20,9 @@ export async function GET(
     const { currency_code } = req.query;
     
     // Ensure currency_code is a string (handle array or undefined)
-    const currencyCode = Array.isArray(currency_code) 
-      ? currency_code[0] || "ghs" 
-      : currency_code || "ghs";
+    const currencyCode: string = Array.isArray(currency_code) 
+      ? (currency_code[0] as string) || "ghs" 
+      : (currency_code as string) || "ghs";
 
     const { data: products } = await query.graph({
       entity: "product",
