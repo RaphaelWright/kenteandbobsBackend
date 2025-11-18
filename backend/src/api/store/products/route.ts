@@ -22,6 +22,11 @@ export async function GET(
       currency_code = "ghs",
     } = req.query;
 
+    // Set pricing context for calculated prices
+    req.pricingContext = {
+      currency_code: String(currency_code).toLowerCase(),
+    };
+
     // Build the query with Medusa v2's native pricing support
     const { data: products } = await query.graph({
       entity: "product",
@@ -59,11 +64,6 @@ export async function GET(
       pagination: {
         skip: Number(offset),
         take: Number(limit),
-      },
-    },
-    {
-      context: {
-        currency_code: String(currency_code).toLowerCase(),
       },
     });
 
