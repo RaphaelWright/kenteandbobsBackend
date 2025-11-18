@@ -39,12 +39,23 @@ export const optionalAuthenticate = async (req, res, next) => {
  */
 export const setPricingContext = async (req, res, next) => {
   // Get currency_code from query params or default to GHS
-  const currency_code = (req.query?.currency_code as string) || "ghs";
+  let currency_code = "ghs";
+  const queryCurrency = req.query?.currency_code;
+  
+  if (queryCurrency) {
+    if (Array.isArray(queryCurrency)) {
+      currency_code = queryCurrency[0]?.toString().toLowerCase() || "ghs";
+    } else if (typeof queryCurrency === "string") {
+      currency_code = queryCurrency.toLowerCase() || "ghs";
+    }
+  }
   
   // Set pricing context that Medusa can use
   req.pricingContext = {
-    currency_code: currency_code.toLowerCase(),
+    currency_code: currency_code,
   };
+  
+  console.log(`[Pricing Middleware] Set currency_code to: ${currency_code}`);
   
   next();
 };

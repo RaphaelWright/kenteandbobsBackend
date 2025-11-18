@@ -29,13 +29,12 @@ export async function GET(
       category_id,
       search,
       order = "created_at",
-      currency_code,
     } = req.query;
 
-    // Ensure currency_code is a string (handle array or undefined)
-    const currencyCode: string = Array.isArray(currency_code) 
-      ? (currency_code[0] as string) || "ghs" 
-      : (currency_code as string) || "ghs";
+    // Get currency code from pricing context set by middleware
+    const currencyCode = req.pricingContext?.currency_code || "ghs";
+    
+    console.log(`[Products API] Using currency code: ${currencyCode}`);
 
     // Build the query for products with variants and their price-related data
     const { data: products, metadata } = await query.graph({
@@ -90,6 +89,7 @@ export async function GET(
     
     if (allVariantIds.length > 0) {
       try {
+        console.log(`[Products API] Calculating prices for ${allVariantIds.length} variants with currency: ${currencyCode}`);
         const calculatedPrices = await pricingModuleService.calculatePrices(
           { id: allVariantIds },
           {
@@ -103,8 +103,10 @@ export async function GET(
         Object.entries(calculatedPrices).forEach(([variantId, priceData]) => {
           variantPriceMap[variantId] = priceData;
         });
+        console.log(`[Products API] Successfully calculated prices for ${Object.keys(variantPriceMap).length} variants`);
       } catch (error) {
-        console.error("Error calculating prices for variants:", error.message || error);
+        console.error("[Products API] Error calculating prices for variants:", error.message || error);
+        console.error("[Products API] Currency code used:", currencyCode);
         // Continue without prices
       }
     }
