@@ -32,7 +32,7 @@ export async function GET(
       currency_code = "ghs", // Default to Ghana Cedis
     } = req.query;
 
-    // Build the query for products (WITHOUT calculated_price to avoid the error)
+    // Build the query for products with variants and their price-related data
     const { data: products, metadata } = await query.graph({
       entity: "product",
       fields: [
@@ -47,6 +47,7 @@ export async function GET(
         "updated_at",
         "images.*",
         "variants.*",
+        "variants.calculated_price.*",
         "variants.inventory_items.*",
         "variants.inventory_items.inventory.*",
         "categories.*",
@@ -71,31 +72,35 @@ export async function GET(
       },
     });
 
-    // Manually calculate prices using the Pricing Module
-    const variantPriceMap: Record<string, any> = {};
-    
+    // Collect all variant IDs for batch price calculation
+    const allVariantIds: string[] = [];
     for (const product of products) {
       if (product.variants && product.variants.length > 0) {
-        for (const variant of product.variants) {
-          try {
-            // Calculate price for this variant with explicit currency
-            const calculatedPrices = await pricingModuleService.calculatePrices(
-              { id: [variant.id] },
-              {
-                context: {
-                  currency_code: currency_code as string,
-                },
-              }
-            );
-            
-            if (calculatedPrices && calculatedPrices[variant.id]) {
-              variantPriceMap[variant.id] = calculatedPrices[variant.id];
-            }
-          } catch (error) {
-            console.error(`Error calculating price for variant ${variant.id}:`, error);
-            // Continue without price for this variant
+        allVariantIds.push(...product.variants.map((v: any) => v.id));
+      }
+    }
+
+    // Batch calculate prices for all variants at once (more efficient)
+    const variantPriceMap: Record<string, any> = {};
+    
+    if (allVariantIds.length > 0) {
+      try {
+        const calculatedPrices = await pricingModuleService.calculatePrices(
+          { id: allVariantIds },
+          {
+            context: {
+              currency_code: currency_code as string,
+            },
           }
-        }
+        );
+        
+        // Store calculated prices in map
+        Object.entries(calculatedPrices).forEach(([variantId, priceData]) => {
+          variantPriceMap[variantId] = priceData;
+        });
+      } catch (error) {
+        console.error("Error calculating prices for variants:", error);
+        // Continue without prices
       }
     }
 
@@ -186,17 +191,23 @@ export async function GET(
           value: tag.value,
         })) || [],
         quantity: totalQuantity,
-        variants: product.variants?.map((variant: any) => ({
-          id: variant.id,
-          title: variant.title,
-          sku: variant.sku,
-          price: variantPriceMap[variant.id]?.calculated_amount,
-          currency: currency_code as string,
-          inventory_quantity: variant.inventory_items?.reduce(
-            (sum: number, item: any) => sum + (item.inventory?.stocked_quantity || 0),
-            0
-          ) || 0,
-        })) || [],
+        variants: product.variants?.map((variant: any) => {
+          const priceData = variantPriceMap[variant.id];
+          return {
+            id: variant.id,
+            title: variant.title,
+            sku: variant.sku,
+            // Include all price information from Medusa pricing module
+            price: priceData?.calculated_amount || null,
+            original_price: priceData?.original_amount || null,
+            currency: currency_code as string,
+            price_type: priceData?.is_calculated_price_price_list ? "sale" : "default",
+            inventory_quantity: variant.inventory_items?.reduce(
+              (sum: number, item: any) => sum + (item.inventory?.stocked_quantity || 0),
+              0
+            ) || 0,
+          };
+        }) || [],
         reviews: {
           total: reviewsByProduct[product.id]?.total || 0,
           average_rating: reviewsByProduct[product.id]?.average || 0,

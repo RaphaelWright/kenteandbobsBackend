@@ -33,6 +33,7 @@ export async function GET(
         "updated_at",
         "images.*",
         "variants.*",
+        "variants.calculated_price.*",
         "variants.inventory_items.*",
         "variants.inventory_items.inventory.*",
         "categories.*",
@@ -53,29 +54,28 @@ export async function GET(
 
     const product = products[0];
 
-    // Manually calculate prices using the Pricing Module
+    // Calculate prices for all variants using the Pricing Module
     const variantPriceMap: Record<string, any> = {};
     
     if (product.variants && product.variants.length > 0) {
-      for (const variant of product.variants) {
-        try {
-          // Calculate price for this variant with explicit currency
-          const calculatedPrices = await pricingModuleService.calculatePrices(
-            { id: [variant.id] },
-            {
-              context: {
-                currency_code: currency_code as string,
-              },
-            }
-          );
-          
-          if (calculatedPrices && calculatedPrices[variant.id]) {
-            variantPriceMap[variant.id] = calculatedPrices[variant.id];
+      try {
+        const variantIds = product.variants.map((v: any) => v.id);
+        const calculatedPrices = await pricingModuleService.calculatePrices(
+          { id: variantIds },
+          {
+            context: {
+              currency_code: currency_code as string,
+            },
           }
-        } catch (error) {
-          console.error(`Error calculating price for variant ${variant.id}:`, error);
-          // Continue without price for this variant
-        }
+        );
+        
+        // Store calculated prices in map
+        Object.entries(calculatedPrices).forEach(([variantId, priceData]) => {
+          variantPriceMap[variantId] = priceData;
+        });
+      } catch (error) {
+        console.error("Error calculating prices for variants:", error);
+        // Continue without prices
       }
     }
 
@@ -164,19 +164,25 @@ export async function GET(
         values: opt.values,
       })) || [],
       quantity: totalQuantity,
-      variants: product.variants?.map((variant: any) => ({
-        id: variant.id,
-        title: variant.title,
-        sku: variant.sku,
-        barcode: variant.barcode,
-        price: variantPriceMap[variant.id]?.calculated_amount,
-        currency: currency_code as string,
-        inventory_quantity: variant.inventory_items?.reduce(
-          (sum: number, item: any) => sum + (item.inventory?.stocked_quantity || 0),
-          0
-        ) || 0,
-        options: variant.options,
-      })) || [],
+      variants: product.variants?.map((variant: any) => {
+        const priceData = variantPriceMap[variant.id];
+        return {
+          id: variant.id,
+          title: variant.title,
+          sku: variant.sku,
+          barcode: variant.barcode,
+          // Include all price information from Medusa pricing module
+          price: priceData?.calculated_amount || null,
+          original_price: priceData?.original_amount || null,
+          currency: currency_code as string,
+          price_type: priceData?.is_calculated_price_price_list ? "sale" : "default",
+          inventory_quantity: variant.inventory_items?.reduce(
+            (sum: number, item: any) => sum + (item.inventory?.stocked_quantity || 0),
+            0
+          ) || 0,
+          options: variant.options,
+        };
+      }) || [],
       reviews: {
         total: reviews.length,
         average_rating: Math.round(averageRating * 10) / 10,
