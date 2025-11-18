@@ -1,10 +1,9 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
-import { Modules } from "@medusajs/framework/utils";
 import ReviewModuleService from "../../../../modules/review/service";
 
 /**
  * GET /store/products/:id
- * Fetch a single product by ID with all details
+ * Fetch a single product by ID using Medusa v2 native approach
  */
 export async function GET(
   req: MedusaRequest,
@@ -12,15 +11,13 @@ export async function GET(
 ) {
   const query = req.scope.resolve("query");
   const reviewModuleService: ReviewModuleService = req.scope.resolve("reviewModuleService");
-  const pricingModuleService = req.scope.resolve(Modules.PRICING);
   const { id } = req.params;
 
   try {
-    // Get currency code from pricing context set by middleware
-    const currencyCode = req.pricingContext?.currency_code || "ghs";
-    
-    console.log(`[Product Detail API] Using currency code: ${currencyCode} for product ID: ${id}`);
+    // Get currency from query params
+    const { currency_code = "ghs" } = req.query;
 
+    // Fetch product with Medusa v2's native pricing support
     const { data: products } = await query.graph({
       entity: "product",
       fields: [
@@ -46,6 +43,11 @@ export async function GET(
         id,
         status: "published",
       },
+    },
+    {
+      context: {
+        currency_code: String(currency_code).toLowerCase(),
+      },
     });
 
     if (!products || products.length === 0) {
@@ -56,35 +58,7 @@ export async function GET(
 
     const product = products[0];
 
-    // Calculate prices for all variants using the Pricing Module
-    const variantPriceMap: Record<string, any> = {};
-    
-    if (product.variants && product.variants.length > 0) {
-      try {
-        const variantIds = product.variants.map((v: any) => v.id);
-        console.log(`[Product Detail API] Calculating prices for ${variantIds.length} variants with currency: ${currencyCode}`);
-        const calculatedPrices = await pricingModuleService.calculatePrices(
-          { id: variantIds },
-          {
-            context: {
-              currency_code: currencyCode,
-            },
-          }
-        );
-        
-        // Store calculated prices in map
-        Object.entries(calculatedPrices).forEach(([variantId, priceData]) => {
-          variantPriceMap[variantId] = priceData;
-        });
-        console.log(`[Product Detail API] Successfully calculated prices for ${Object.keys(variantPriceMap).length} variants`);
-      } catch (error) {
-        console.error("[Product Detail API] Error calculating prices for variants:", error.message || error);
-        console.error("[Product Detail API] Currency code used:", currencyCode);
-        // Continue without prices
-      }
-    }
-
-    // Fetch reviews for this product (optional - if review table doesn't exist, skip)
+    // Fetch reviews for this product
     let reviews: any[] = [];
     let averageRating = 0;
     let ratingDistribution = {
@@ -104,7 +78,6 @@ export async function GET(
       const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
       averageRating = reviews.length > 0 ? totalRating / reviews.length : 0;
 
-      // Calculate rating distribution
       ratingDistribution = {
         5: reviews.filter((r) => r.rating === 5).length,
         4: reviews.filter((r) => r.rating === 4).length,
@@ -113,24 +86,21 @@ export async function GET(
         1: reviews.filter((r) => r.rating === 1).length,
       };
     } catch (error) {
-      console.error("Review module error (table may not exist yet):", error.message);
-      // Continue without reviews - this is non-critical
+      console.error("Review module error:", error.message);
     }
 
-    // Calculate total quantity from all variants
+    // Calculate total quantity
     const totalQuantity = product.variants?.reduce((sum: number, variant: any) => {
       const inventoryQuantity = variant.inventory_items?.reduce(
-        (invSum: number, item: any) => {
-          return invSum + (item.inventory?.stocked_quantity || 0);
-        },
+        (invSum: number, item: any) => invSum + (item.inventory?.stocked_quantity || 0),
         0
       );
       return sum + (inventoryQuantity || 0);
     }, 0) || 0;
 
-    // Get price range from variants using manually calculated prices
+    // Get price range from variants (using calculated_price from Medusa)
     const prices = product.variants
-      ?.map((v: any) => variantPriceMap[v.id]?.calculated_amount)
+      ?.map((v: any) => v.calculated_price?.calculated_amount)
       .filter((p: any) => p != null);
     
     const minPrice = prices?.length ? Math.min(...prices) : null;
@@ -151,7 +121,7 @@ export async function GET(
       price: {
         min: minPrice,
         max: maxPrice,
-        currency: currencyCode,
+        currency: String(currency_code).toLowerCase(),
       },
       categories: product.categories?.map((cat: any) => ({
         id: cat.id,
@@ -169,25 +139,21 @@ export async function GET(
         values: opt.values,
       })) || [],
       quantity: totalQuantity,
-      variants: product.variants?.map((variant: any) => {
-        const priceData = variantPriceMap[variant.id];
-        return {
-          id: variant.id,
-          title: variant.title,
-          sku: variant.sku,
-          barcode: variant.barcode,
-          // Include all price information from Medusa pricing module
-          price: priceData?.calculated_amount || null,
-          original_price: priceData?.original_amount || null,
-          currency: currencyCode,
-          price_type: priceData?.is_calculated_price_price_list ? "sale" : "default",
-          inventory_quantity: variant.inventory_items?.reduce(
-            (sum: number, item: any) => sum + (item.inventory?.stocked_quantity || 0),
-            0
-          ) || 0,
-          options: variant.options,
-        };
-      }) || [],
+      variants: product.variants?.map((variant: any) => ({
+        id: variant.id,
+        title: variant.title,
+        sku: variant.sku,
+        barcode: variant.barcode,
+        price: variant.calculated_price?.calculated_amount || null,
+        original_price: variant.calculated_price?.original_amount || null,
+        currency: String(currency_code).toLowerCase(),
+        price_type: variant.calculated_price?.is_calculated_price_price_list ? "sale" : "default",
+        inventory_quantity: variant.inventory_items?.reduce(
+          (sum: number, item: any) => sum + (item.inventory?.stocked_quantity || 0),
+          0
+        ) || 0,
+        options: variant.options,
+      })) || [],
       reviews: {
         total: reviews.length,
         average_rating: Math.round(averageRating * 10) / 10,
@@ -218,4 +184,3 @@ export async function GET(
     });
   }
 }
-

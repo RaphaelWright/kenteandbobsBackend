@@ -1,17 +1,9 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
-import { Modules } from "@medusajs/framework/utils";
 import ReviewModuleService from "../../../modules/review/service";
 
 /**
  * GET /store/products
- * Fetch all products with their details including:
- * - images
- * - name (title)
- * - price (from variants)
- * - description
- * - category
- * - quantity (inventory)
- * - reviews
+ * Fetch all products with their details using Medusa v2 native approach
  */
 export async function GET(
   req: MedusaRequest,
@@ -19,25 +11,19 @@ export async function GET(
 ) {
   const query = req.scope.resolve("query");
   const reviewModuleService: ReviewModuleService = req.scope.resolve("reviewModuleService");
-  const pricingModuleService = req.scope.resolve(Modules.PRICING);
   
   try {
-    // Query parameters for filtering, pagination, and search
+    // Query parameters
     const {
       limit = 50,
       offset = 0,
       category_id,
       search,
-      order = "created_at",
+      currency_code = "ghs",
     } = req.query;
 
-    // Get currency code from pricing context set by middleware
-    const currencyCode = req.pricingContext?.currency_code || "ghs";
-    
-    console.log(`[Products API] Using currency code: ${currencyCode}`);
-
-    // Build the query for products with variants and their price-related data
-    const { data: products, metadata } = await query.graph({
+    // Build the query with Medusa v2's native pricing support
+    const { data: products } = await query.graph({
       entity: "product",
       fields: [
         "id",
@@ -68,50 +54,20 @@ export async function GET(
             $ilike: `%${search}%`,
           },
         }),
-        status: "published", // Only show published products
+        status: "published",
       },
       pagination: {
         skip: Number(offset),
         take: Number(limit),
       },
+    },
+    {
+      context: {
+        currency_code: String(currency_code).toLowerCase(),
+      },
     });
 
-    // Collect all variant IDs for batch price calculation
-    const allVariantIds: string[] = [];
-    for (const product of products) {
-      if (product.variants && product.variants.length > 0) {
-        allVariantIds.push(...product.variants.map((v: any) => v.id));
-      }
-    }
-
-    // Batch calculate prices for all variants at once (more efficient)
-    const variantPriceMap: Record<string, any> = {};
-    
-    if (allVariantIds.length > 0) {
-      try {
-        console.log(`[Products API] Calculating prices for ${allVariantIds.length} variants with currency: ${currencyCode}`);
-        const calculatedPrices = await pricingModuleService.calculatePrices(
-          { id: allVariantIds },
-          {
-            context: {
-              currency_code: currencyCode,
-            },
-          }
-        );
-        
-        // Store calculated prices in map
-        Object.entries(calculatedPrices).forEach(([variantId, priceData]) => {
-          variantPriceMap[variantId] = priceData;
-        });
-        console.log(`[Products API] Successfully calculated prices for ${Object.keys(variantPriceMap).length} variants`);
-      } catch (error) {
-        console.error("[Products API] Error calculating prices for variants:", error.message || error);
-        console.error("[Products API] Currency code used:", currencyCode);
-        // Continue without prices
-      }
-    }
-
-    // Fetch reviews for all products (optional - if review table doesn't exist, skip)
+    // Fetch reviews for all products
     const productIds = products.map((p: any) => p.id);
     let reviewsByProduct: Record<string, any> = {};
     
@@ -122,7 +78,6 @@ export async function GET(
           status: "approved",
         });
 
-        // Group reviews by product_id and calculate stats
         reviewsByProduct = allReviews.reduce((acc: any, review: any) => {
           if (!acc[review.product_id]) {
             acc[review.product_id] = {
@@ -135,7 +90,6 @@ export async function GET(
           return acc;
         }, {});
 
-        // Calculate averages
         Object.keys(reviewsByProduct).forEach((productId) => {
           const reviews = reviewsByProduct[productId].reviews;
           const totalRating = reviews.reduce((sum: number, r: any) => sum + r.rating, 0);
@@ -145,27 +99,24 @@ export async function GET(
             : 0;
         });
       } catch (error) {
-        console.error("Review module error (table may not exist yet):", error.message);
-        // Continue without reviews - this is non-critical
+        console.error("Review module error:", error.message);
       }
     }
 
-    // Format the response to include all requested features
+    // Format the response
     const formattedProducts = products.map((product: any) => {
-      // Calculate total quantity from all variants
+      // Calculate total quantity
       const totalQuantity = product.variants?.reduce((sum: number, variant: any) => {
         const inventoryQuantity = variant.inventory_items?.reduce(
-          (invSum: number, item: any) => {
-            return invSum + (item.inventory?.stocked_quantity || 0);
-          },
+          (invSum: number, item: any) => invSum + (item.inventory?.stocked_quantity || 0),
           0
         );
         return sum + (inventoryQuantity || 0);
       }, 0) || 0;
 
-      // Get price range from variants using manually calculated prices
+      // Get price range from variants (using calculated_price from Medusa)
       const prices = product.variants
-        ?.map((v: any) => variantPriceMap[v.id]?.calculated_amount)
+        ?.map((v: any) => v.calculated_price?.calculated_amount)
         .filter((p: any) => p != null);
       
       const minPrice = prices?.length ? Math.min(...prices) : null;
@@ -186,7 +137,7 @@ export async function GET(
         price: {
           min: minPrice,
           max: maxPrice,
-          currency: currencyCode,
+          currency: String(currency_code).toLowerCase(),
         },
         categories: product.categories?.map((cat: any) => ({
           id: cat.id,
@@ -198,23 +149,19 @@ export async function GET(
           value: tag.value,
         })) || [],
         quantity: totalQuantity,
-        variants: product.variants?.map((variant: any) => {
-          const priceData = variantPriceMap[variant.id];
-          return {
-            id: variant.id,
-            title: variant.title,
-            sku: variant.sku,
-            // Include all price information from Medusa pricing module
-            price: priceData?.calculated_amount || null,
-            original_price: priceData?.original_amount || null,
-            currency: currencyCode,
-            price_type: priceData?.is_calculated_price_price_list ? "sale" : "default",
-            inventory_quantity: variant.inventory_items?.reduce(
-              (sum: number, item: any) => sum + (item.inventory?.stocked_quantity || 0),
-              0
-            ) || 0,
-          };
-        }) || [],
+        variants: product.variants?.map((variant: any) => ({
+          id: variant.id,
+          title: variant.title,
+          sku: variant.sku,
+          price: variant.calculated_price?.calculated_amount || null,
+          original_price: variant.calculated_price?.original_amount || null,
+          currency: String(currency_code).toLowerCase(),
+          price_type: variant.calculated_price?.is_calculated_price_price_list ? "sale" : "default",
+          inventory_quantity: variant.inventory_items?.reduce(
+            (sum: number, item: any) => sum + (item.inventory?.stocked_quantity || 0),
+            0
+          ) || 0,
+        })) || [],
         reviews: {
           total: reviewsByProduct[product.id]?.total || 0,
           average_rating: reviewsByProduct[product.id]?.average || 0,
@@ -239,4 +186,3 @@ export async function GET(
     });
   }
 }
-
