@@ -29,8 +29,13 @@ export async function GET(
       category_id,
       search,
       order = "created_at",
-      currency_code = "ghs", // Default to Ghana Cedis
+      currency_code,
     } = req.query;
+
+    // Ensure currency_code is a string (handle array or undefined)
+    const currencyCode = Array.isArray(currency_code) 
+      ? currency_code[0] || "ghs" 
+      : currency_code || "ghs";
 
     // Build the query for products with variants and their price-related data
     const { data: products, metadata } = await query.graph({
@@ -89,7 +94,7 @@ export async function GET(
           { id: allVariantIds },
           {
             context: {
-              currency_code: currency_code as string,
+              currency_code: currencyCode,
             },
           }
         );
@@ -99,7 +104,7 @@ export async function GET(
           variantPriceMap[variantId] = priceData;
         });
       } catch (error) {
-        console.error("Error calculating prices for variants:", error);
+        console.error("Error calculating prices for variants:", error.message || error);
         // Continue without prices
       }
     }
@@ -179,7 +184,7 @@ export async function GET(
         price: {
           min: minPrice,
           max: maxPrice,
-          currency: currency_code as string,
+          currency: currencyCode,
         },
         categories: product.categories?.map((cat: any) => ({
           id: cat.id,
@@ -200,7 +205,7 @@ export async function GET(
             // Include all price information from Medusa pricing module
             price: priceData?.calculated_amount || null,
             original_price: priceData?.original_amount || null,
-            currency: currency_code as string,
+            currency: currencyCode,
             price_type: priceData?.is_calculated_price_price_list ? "sale" : "default",
             inventory_quantity: variant.inventory_items?.reduce(
               (sum: number, item: any) => sum + (item.inventory?.stocked_quantity || 0),

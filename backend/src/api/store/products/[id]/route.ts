@@ -17,7 +17,12 @@ export async function GET(
 
   try {
     // Get currency from query params
-    const { currency_code = "ghs" } = req.query;
+    const { currency_code } = req.query;
+    
+    // Ensure currency_code is a string (handle array or undefined)
+    const currencyCode = Array.isArray(currency_code) 
+      ? currency_code[0] || "ghs" 
+      : currency_code || "ghs";
 
     const { data: products } = await query.graph({
       entity: "product",
@@ -64,7 +69,7 @@ export async function GET(
           { id: variantIds },
           {
             context: {
-              currency_code: currency_code as string,
+              currency_code: currencyCode,
             },
           }
         );
@@ -74,7 +79,7 @@ export async function GET(
           variantPriceMap[variantId] = priceData;
         });
       } catch (error) {
-        console.error("Error calculating prices for variants:", error);
+        console.error("Error calculating prices for variants:", error.message || error);
         // Continue without prices
       }
     }
@@ -146,7 +151,7 @@ export async function GET(
       price: {
         min: minPrice,
         max: maxPrice,
-        currency: currency_code as string,
+        currency: currencyCode,
       },
       categories: product.categories?.map((cat: any) => ({
         id: cat.id,
@@ -174,7 +179,7 @@ export async function GET(
           // Include all price information from Medusa pricing module
           price: priceData?.calculated_amount || null,
           original_price: priceData?.original_amount || null,
-          currency: currency_code as string,
+          currency: currencyCode,
           price_type: priceData?.is_calculated_price_price_list ? "sale" : "default",
           inventory_quantity: variant.inventory_items?.reduce(
             (sum: number, item: any) => sum + (item.inventory?.stocked_quantity || 0),
