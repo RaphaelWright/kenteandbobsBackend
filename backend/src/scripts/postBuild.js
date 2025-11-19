@@ -30,3 +30,14 @@ execSync('pnpm i --prod --frozen-lockfile', {
   cwd: MEDUSA_SERVER_PATH,
   stdio: 'inherit'
 });
+
+// Run database setup (migrations and schema sync)
+console.log('Setting up database...');
+try {
+  execSync('node src/scripts/ensure-migrations.js', { 
+    cwd: process.cwd(),
+    stdio: 'inherit'
+  });
+} catch (error) {
+  console.warn('Database setup encountered issues, but continuing...');
+}
