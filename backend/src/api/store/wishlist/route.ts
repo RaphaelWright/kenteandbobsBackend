@@ -163,7 +163,7 @@ export async function POST(
       });
     }
 
-    const { product_id, variant_id } = req.body;
+    const { product_id, variant_id } = req.body as { product_id?: string; variant_id?: string };
 
     if (!product_id) {
       return res.status(400).json({

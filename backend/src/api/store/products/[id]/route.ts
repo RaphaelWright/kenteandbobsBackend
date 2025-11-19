@@ -1,5 +1,6 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
 import ReviewModuleService from "../../../../modules/review/service";
+import WishlistModuleService from "../../../../modules/wishlist/service";
 
 /**
  * GET /store/products/:id
@@ -11,7 +12,7 @@ export async function GET(
 ) {
   const query = req.scope.resolve("query");
   const reviewModuleService: ReviewModuleService = req.scope.resolve("reviewModuleService");
-  const wishlistModuleService = req.scope.resolve("wishlistModuleService");
+  const wishlistModuleService: WishlistModuleService = req.scope.resolve("wishlistModuleService");
   const { id } = req.params;
 
   try {
@@ -52,7 +53,8 @@ export async function GET(
     const product = products[0];
 
     // Get customer ID if logged in
-    const customerId = req.auth_context?.actor_id;
+    const authContext = req.session?.auth_context;
+    const customerId = authContext?.actor_id;
 
     // Fetch reviews
     let reviews: any[] = [];
