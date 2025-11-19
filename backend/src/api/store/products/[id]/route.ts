@@ -11,6 +11,7 @@ export async function GET(
 ) {
   const query = req.scope.resolve("query");
   const reviewModuleService: ReviewModuleService = req.scope.resolve("reviewModuleService");
+  const wishlistModuleService = req.scope.resolve("wishlistModuleService");
   const { id } = req.params;
 
   try {
@@ -50,6 +51,9 @@ export async function GET(
 
     const product = products[0];
 
+    // Get customer ID if logged in
+    const customerId = req.auth_context?.actor_id;
+
     // Fetch reviews
     let reviews: any[] = [];
     let averageRating = 0;
@@ -79,6 +83,22 @@ export async function GET(
       };
     } catch (error) {
       console.error("Review module error:", error.message);
+    }
+
+    // Check if product is in wishlist
+    let isInWishlist = false;
+    
+    if (customerId) {
+      try {
+        const wishlistItems = await wishlistModuleService.listWishlists({
+          customer_id: customerId,
+          product_id: id,
+        });
+        
+        isInWishlist = wishlistItems && wishlistItems.length > 0;
+      } catch (error) {
+        console.error("Wishlist module error:", error.message);
+      }
     }
 
     // Calculate total quantity
@@ -163,6 +183,7 @@ export async function GET(
           created_at: review.created_at,
         })),
       },
+      is_in_wishlist: isInWishlist,
       created_at: product.created_at,
       updated_at: product.updated_at,
     };

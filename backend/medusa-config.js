@@ -58,6 +58,10 @@ const medusaConfig = {
       key: 'reviewModuleService',
     },
     {
+      resolve: './src/modules/wishlist',
+      key: 'wishlistModuleService',
+    },
+    {
       key: Modules.AUTH,
       resolve: '@medusajs/auth',
       options: {

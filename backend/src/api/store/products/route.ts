@@ -1,5 +1,6 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
 import ReviewModuleService from "../../../modules/review/service";
+import WishlistModuleService from "../../../modules/wishlist/service";
 
 /**
  * GET /store/products
@@ -11,6 +12,7 @@ export async function GET(
 ) {
   const query = req.scope.resolve("query");
   const reviewModuleService: ReviewModuleService = req.scope.resolve("reviewModuleService");
+  const wishlistModuleService: WishlistModuleService = req.scope.resolve("wishlistModuleService");
   
   try {
     // Query parameters
@@ -61,6 +63,10 @@ export async function GET(
       },
     });
 
+    // Get customer ID if logged in
+    const authContext = req.session?.auth_context;
+    const customerId = authContext?.actor_id;
+
     // Fetch reviews
     const productIds = products.map((p: any) => p.id);
     let reviewsByProduct: Record<string, any> = {};
@@ -94,6 +100,22 @@ export async function GET(
         });
       } catch (error) {
         console.error("Review module error:", error.message);
+      }
+    }
+
+    // Fetch wishlist items for logged-in customer
+    let wishlistProductIds: Set<string> = new Set();
+    
+    if (customerId) {
+      try {
+        const wishlistItems = await wishlistModuleService.listWishlists({
+          customer_id: customerId,
+          product_id: productIds,
+        });
+
+        wishlistProductIds = new Set(wishlistItems.map((item: any) => item.product_id));
+      } catch (error) {
+        console.error("Wishlist module error:", error.message);
       }
     }
 
@@ -163,6 +185,7 @@ export async function GET(
           average_rating: reviewsByProduct[product.id]?.average || 0,
           recent: reviewsByProduct[product.id]?.reviews.slice(0, 3) || [],
         },
+        is_in_wishlist: wishlistProductIds.has(product.id),
         created_at: product.created_at,
         updated_at: product.updated_at,
       };
