@@ -33,33 +33,6 @@ export const optionalAuthenticate = async (req, res, next) => {
   next();
 };
 
-/**
- * Pricing context middleware
- * Sets the currency_code for price calculations
- */
-export const setPricingContext = async (req, res, next) => {
-  // Get currency_code from query params or default to GHS
-  let currency_code = "ghs";
-  const queryCurrency = req.query?.currency_code;
-  
-  if (queryCurrency) {
-    if (Array.isArray(queryCurrency)) {
-      currency_code = queryCurrency[0]?.toString().toLowerCase() || "ghs";
-    } else if (typeof queryCurrency === "string") {
-      currency_code = queryCurrency.toLowerCase() || "ghs";
-    }
-  }
-  
-  // Set pricing context that Medusa can use
-  req.pricingContext = {
-    currency_code: currency_code,
-  };
-  
-  console.log(`[Pricing Middleware] Set currency_code to: ${currency_code}`);
-  
-  next();
-};
-
 export default defineMiddlewares({
   routes: [
     {
@@ -73,10 +46,6 @@ export default defineMiddlewares({
     {
       matcher: "/store/orders*",
       middlewares: [authenticate]
-    },
-    {
-      matcher: "/store/products*",
-      middlewares: [setPricingContext]
     }
   ]
 });
