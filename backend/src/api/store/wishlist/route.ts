@@ -192,6 +192,7 @@ export async function POST(
       customer_id: customerId,
       product_id: product_id,
       variant_id: variant_id || null,
+      added_at: new Date(),
     });
 
     res.status(201).json({

@@ -17,7 +17,7 @@ This module manages customer wishlists/favorites for products.
   customer_id: string
   product_id: string
   variant_id: string (nullable)
-  added_at: DateTime
+  added_at: DateTime (set automatically when created)
 }
 ```
 

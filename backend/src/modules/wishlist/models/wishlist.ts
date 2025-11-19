@@ -9,7 +9,7 @@ const Wishlist = model.define("wishlist", {
   customer_id: model.text(),
   product_id: model.text(),
   variant_id: model.text().nullable(), // Optional: specific variant
-  added_at: model.dateTime().default(() => new Date()),
+  added_at: model.dateTime(),
 });
 
 export default Wishlist;
