@@ -1,0 +1,437 @@
+# Cart Endpoints Documentation
+
+This document describes all available cart endpoints for managing shopping carts in the Kente & Bobs backend.
+
+## Overview
+
+The cart endpoints allow customers (both authenticated and guest users) to:
+- Create and retrieve carts
+- Add items to carts
+- Update item quantities
+- Remove items from carts
+- Complete checkout (requires authentication)
+
+All endpoints support both authenticated and guest users, except for the cart completion endpoint which requires authentication.
+
+---
+
+## Base URL
+
+All cart endpoints are prefixed with `/store/cart`
+
+---
+
+## Endpoints
+
+### 1. Get or Create Cart
+
+**Endpoint:** `GET /store/cart`
+
+**Description:** Retrieves an existing cart or creates a new one if none exists. The cart ID is stored in the session for guest users.
+
+**Authentication:** Optional (works for both authenticated and guest users)
+
+**Query Parameters:**
+- `cart_id` (optional): Specific cart ID to retrieve. If not provided, uses cart from session.
+
+**Response:** `200 OK`
+
+```json
+{
+  "cart": {
+    "id": "cart_01HZXYZ123",
+    "customer_id": "cus_01HZABC456",
+    "email": "customer@example.com",
+    "currency_code": "ghs",
+    "region_id": "reg_01HZREG789",
+    "items": [
+      {
+        "id": "li_01HZITEM001",
+        "title": "Product Name",
+        "subtitle": "Variant Name",
+        "thumbnail": "https://example.com/image.jpg",
+        "quantity": 2,
+        "unit_price": 5000,
+        "total": 10000,
+        "product_id": "prod_01HZPROD123",
+        "variant_id": "variant_01HZVARIANT456",
+        "product": {
+          "id": "prod_01HZPROD123",
+          "title": "Product Name",
+          "handle": "product-name",
+          "thumbnail": "https://example.com/image.jpg"
+        },
+        "variant": {
+          "id": "variant_01HZVARIANT456",
+          "title": "Variant Name",
+          "sku": "SKU-123",
+          "price": 5000,
+          "currency": "ghs"
+        }
+      }
+    ],
+    "subtotal": 10000,
+    "tax_total": 0,
+    "shipping_total": 0,
+    "discount_total": 0,
+    "total": 10000,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
+}
+```
+
+**Error Responses:**
+- `500 Internal Server Error`: Failed to fetch/create cart
+
+---
+
+### 2. Create Cart
+
+**Endpoint:** `POST /store/cart`
+
+**Description:** Explicitly creates a new cart with specified currency and region.
+
+**Authentication:** Optional (works for both authenticated and guest users)
+
+**Request Body:**
+```json
+{
+  "currency_code": "ghs",
+  "region_id": "reg_01HZREG789"
+}
+```
+
+**Fields:**
+- `currency_code` (optional, default: "ghs"): Currency code for the cart
+- `region_id` (optional): Region ID for the cart
+
+**Response:** `201 Created`
+
+```json
+{
+  "cart": {
+    "id": "cart_01HZXYZ123",
+    "customer_id": "cus_01HZABC456",
+    "email": null,
+    "currency_code": "ghs",
+    "region_id": "reg_01HZREG789",
+    "items": [],
+    "subtotal": 0,
+    "tax_total": 0,
+    "shipping_total": 0,
+    "discount_total": 0,
+    "total": 0,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
+}
+```
+
+**Error Responses:**
+- `500 Internal Server Error`: Failed to create cart
+
+---
+
+### 3. Delete Cart
+
+**Endpoint:** `DELETE /store/cart`
+
+**Description:** Deletes a cart and clears it from the session.
+
+**Authentication:** Optional (works for both authenticated and guest users)
+
+**Query Parameters:**
+- `cart_id` (optional): Cart ID to delete. If not provided, uses cart from session.
+
+**Response:** `200 OK`
+
+```json
+{
+  "message": "Cart deleted successfully"
+}
+```
+
+**Error Responses:**
+- `404 Not Found`: Cart not found
+- `500 Internal Server Error`: Failed to delete cart
+
+---
+
+### 4. Add Item to Cart
+
+**Endpoint:** `POST /store/cart/items`
+
+**Description:** Adds a new item to the cart. If the item already exists, increases its quantity.
+
+**Authentication:** Optional (works for both authenticated and guest users)
+
+**Request Body:**
+```json
+{
+  "variant_id": "variant_01HZVARIANT456",
+  "quantity": 2,
+  "cart_id": "cart_01HZXYZ123"
+}
+```
+
+**Fields:**
+- `variant_id` (required): The product variant ID to add to cart
+- `quantity` (optional, default: 1): Quantity to add
+- `cart_id` (optional): Cart ID. Can also be provided via query param or session.
+
+**Response:** `201 Created` (new item) or `200 OK` (quantity updated)
+
+```json
+{
+  "message": "Item added to cart successfully",
+  "cart": {
+    "id": "cart_01HZXYZ123",
+    "items": [...],
+    "subtotal": 10000,
+    "total": 10000,
+    ...
+  }
+}
+```
+
+**Error Responses:**
+- `400 Bad Request`: Missing required fields or invalid quantity
+- `404 Not Found`: Cart not found
+- `500 Internal Server Error`: Failed to add item
+
+---
+
+### 5. Update Cart Item
+
+**Endpoint:** `PATCH /store/cart/items/:id`
+
+**Description:** Updates the quantity of a specific item in the cart.
+
+**Authentication:** Optional (works for both authenticated and guest users)
+
+**Path Parameters:**
+- `id` (required): The cart line item ID
+
+**Request Body:**
+```json
+{
+  "quantity": 5,
+  "cart_id": "cart_01HZXYZ123"
+}
+```
+
+**Fields:**
+- `quantity` (required): New quantity for the item (must be > 0)
+- `cart_id` (optional): Cart ID. Can also be provided via query param or session.
+
+**Response:** `200 OK`
+
+```json
+{
+  "message": "Cart item updated successfully",
+  "cart": {
+    "id": "cart_01HZXYZ123",
+    "items": [...],
+    "subtotal": 25000,
+    "total": 25000,
+    ...
+  }
+}
+```
+
+**Error Responses:**
+- `400 Bad Request`: Missing required fields or invalid quantity
+- `404 Not Found`: Cart or item not found
+- `500 Internal Server Error`: Failed to update item
+
+---
+
+### 6. Remove Item from Cart
+
+**Endpoint:** `DELETE /store/cart/items/:id`
+
+**Description:** Removes a specific item from the cart.
+
+**Authentication:** Optional (works for both authenticated and guest users)
+
+**Path Parameters:**
+- `id` (required): The cart line item ID
+
+**Request Body:**
+```json
+{
+  "cart_id": "cart_01HZXYZ123"
+}
+```
+
+**Fields:**
+- `cart_id` (optional): Cart ID. Can also be provided via query param or session.
+
+**Response:** `200 OK`
+
+```json
+{
+  "message": "Item removed from cart successfully",
+  "cart": {
+    "id": "cart_01HZXYZ123",
+    "items": [...],
+    "subtotal": 0,
+    "total": 0,
+    ...
+  }
+}
+```
+
+**Error Responses:**
+- `400 Bad Request`: Missing cart_id
+- `404 Not Found`: Cart or item not found
+- `500 Internal Server Error`: Failed to remove item
+
+---
+
+### 7. Complete Cart (Checkout)
+
+**Endpoint:** `POST /store/cart/complete`
+
+**Description:** Completes the cart checkout process. This endpoint requires authentication and converts the cart into an order.
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+  "cart_id": "cart_01HZXYZ123",
+  "shipping_address": {
+    "first_name": "John",
+    "last_name": "Doe",
+    "address_1": "123 Main St",
+    "address_2": "Apt 4",
+    "city": "Accra",
+    "province": "Greater Accra",
+    "postal_code": "GA001",
+    "country_code": "GH",
+    "phone": "+233241234567"
+  },
+  "billing_address": {
+    "first_name": "John",
+    "last_name": "Doe",
+    "address_1": "123 Main St",
+    "address_2": "Apt 4",
+    "city": "Accra",
+    "province": "Greater Accra",
+    "postal_code": "GA001",
+    "country_code": "GH",
+    "phone": "+233241234567"
+  },
+  "shipping_method_id": "sm_01HZSHIP123",
+  "payment_provider_id": "stripe"
+}
+```
+
+**Fields:**
+- `cart_id` (optional): Cart ID. Can also be provided via query param or session.
+- `shipping_address` (optional): Shipping address object
+- `billing_address` (optional): Billing address object
+- `shipping_method_id` (optional): Selected shipping method ID
+- `payment_provider_id` (optional, default: "stripe"): Payment provider ID
+
+**Response:** `200 OK`
+
+```json
+{
+  "message": "Cart completed successfully",
+  "cart": {
+    "id": "cart_01HZXYZ123",
+    "items": [...],
+    "shipping_address": {...},
+    "billing_address": {...},
+    "total": 10000,
+    ...
+  },
+  "note": "Order creation workflow should be implemented here"
+}
+```
+
+**Note:** The actual order creation workflow should be implemented using Medusa workflows or order services.
+
+**Error Responses:**
+- `400 Bad Request`: Missing cart_id or cart is empty
+- `401 Unauthorized`: User not authenticated
+- `404 Not Found`: Cart not found or customer not found
+- `500 Internal Server Error`: Failed to complete cart
+
+---
+
+## Cart ID Handling
+
+The cart ID can be provided in three ways (in order of priority):
+1. Request body (`cart_id` field)
+2. Query parameter (`?cart_id=...`)
+3. Session (`req.session.cart_id`)
+
+For guest users, the cart ID is automatically stored in the session when a cart is created or retrieved.
+
+For authenticated users, the cart is automatically associated with their customer record.
+
+---
+
+## Error Response Format
+
+All error responses follow this format:
+
+```json
+{
+  "error": "Error Type",
+  "message": "Detailed error message"
+}
+```
+
+---
+
+## Examples
+
+### Example: Complete Cart Workflow
+
+1. **Create a cart:**
+```bash
+POST /store/cart
+```
+
+2. **Add items:**
+```bash
+POST /store/cart/items
+{
+  "variant_id": "variant_01HZVARIANT456",
+  "quantity": 2
+}
+```
+
+3. **Update item quantity:**
+```bash
+PATCH /store/cart/items/li_01HZITEM001
+{
+  "quantity": 3
+}
+```
+
+4. **Complete checkout:**
+```bash
+POST /store/cart/complete
+{
+  "shipping_address": {...},
+  "billing_address": {...}
+}
+```
+
+---
+
+## Notes
+
+- Guest users can create and manage carts without authentication
+- Cart completion (checkout) requires authentication
+- Cart IDs are stored in the session for guest users
+- Authenticated users' carts are automatically associated with their customer record
+- All prices are returned in the cart's currency code
+- Product and variant details are included in cart responses for convenience
+
