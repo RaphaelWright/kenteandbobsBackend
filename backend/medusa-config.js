@@ -20,6 +20,10 @@ import {
   MINIO_ACCESS_KEY,
   MINIO_SECRET_KEY,
   MINIO_BUCKET,
+  CLOUDINARY_CLOUD_NAME,
+  CLOUDINARY_API_KEY,
+  CLOUDINARY_API_SECRET,
+  CLOUDINARY_FOLDER,
   MEILISEARCH_HOST,
   MEILISEARCH_ADMIN_KEY,
   GOOGLE_CLIENT_ID,
@@ -90,7 +94,17 @@ const medusaConfig = {
       resolve: '@medusajs/file',
       options: {
         providers: [
-          ...(MINIO_ENDPOINT && MINIO_ACCESS_KEY && MINIO_SECRET_KEY ? [{
+          // Priority: Cloudinary > MinIO > Local
+          ...(CLOUDINARY_CLOUD_NAME && CLOUDINARY_API_KEY && CLOUDINARY_API_SECRET ? [{
+            resolve: './src/modules/cloudinary-file',
+            id: 'cloudinary',
+            options: {
+              cloudName: CLOUDINARY_CLOUD_NAME,
+              apiKey: CLOUDINARY_API_KEY,
+              apiSecret: CLOUDINARY_API_SECRET,
+              folder: CLOUDINARY_FOLDER // Optional, default: medusa-media
+            }
+          }] : MINIO_ENDPOINT && MINIO_ACCESS_KEY && MINIO_SECRET_KEY ? [{
             resolve: './src/modules/minio-file',
             id: 'minio',
             options: {
