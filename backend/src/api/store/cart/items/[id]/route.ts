@@ -16,7 +16,7 @@ export async function PATCH(
     const query = req.scope.resolve("query");
 
     const { id } = req.params;
-    const { quantity, cart_id } = req.body;
+    const { quantity, cart_id } = req.body as { quantity?: number; cart_id?: string };
 
     // Validation
     if (!id) {
@@ -114,7 +114,7 @@ export async function DELETE(
     const query = req.scope.resolve("query");
 
     const { id } = req.params;
-    const { cart_id } = req.body;
+    const { cart_id } = req.body as { cart_id?: string };
 
     // Validation
     if (!id) {
@@ -157,7 +157,7 @@ export async function DELETE(
     }
 
     // Remove item from cart
-    await cartModuleService.removeLineItems(targetCartId, [id]);
+    await cartModuleService.deleteLineItems([id]);
 
     // Fetch updated cart with details
     const updatedCart = await cartModuleService.retrieveCart(targetCartId, {

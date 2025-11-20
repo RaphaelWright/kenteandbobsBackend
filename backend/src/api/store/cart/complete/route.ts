@@ -33,7 +33,13 @@ export async function POST(
       billing_address,
       shipping_method_id,
       payment_provider_id = "stripe",
-    } = req.body;
+    } = req.body as {
+      cart_id?: string;
+      shipping_address?: any;
+      billing_address?: any;
+      shipping_method_id?: string;
+      payment_provider_id?: string;
+    };
 
     // Get cart_id from request body, query params, or session
     const targetCartId = cart_id || req.query.cart_id || req.session?.cart_id;

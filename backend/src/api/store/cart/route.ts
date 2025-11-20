@@ -113,7 +113,7 @@ export async function POST(
       }
     }
 
-    const { currency_code = "ghs", region_id } = req.body;
+    const { currency_code = "ghs", region_id } = req.body as { currency_code?: string; region_id?: string };
 
     // Create new cart
     const cart = await cartModuleService.createCarts({
