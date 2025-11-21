@@ -46,6 +46,9 @@ const medusaConfig = {
       jwtSecret: JWT_SECRET,
       cookieSecret: COOKIE_SECRET
     },
+    sessionOptions: {
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds (604800000 ms)
+    },
     build: {
       rollupOptions: {
         external: ["@medusajs/dashboard"]
