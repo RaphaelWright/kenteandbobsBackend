@@ -174,7 +174,7 @@ All cart endpoints are prefixed with `/store/cart`
   "cart_id": "cart_01HZXYZ123"
 }
 ```
-
+an endpoint to pick all variants under a product id
 **Fields:**
 - `variant_id` (required): The product variant ID to add to cart
 - `quantity` (optional, default: 1): Quantity to add
