@@ -12,7 +12,7 @@ export async function GET(
   const { id } = req.params;
 
   try {
-    // Fetch variant by querying products and filtering by variant ID
+    // Fetch variant by querying products and filtering by variant ID, including inventory data
     const { data: products } = await query.graph({
       entity: "product",
       fields: [
@@ -23,6 +23,8 @@ export async function GET(
         "status",
         "variants.*",
         "variants.prices.*",
+        "variants.inventory_items.*",
+        "variants.inventory_items.inventory.location_levels.*",
       ],
       filters: {
         status: "published",
@@ -54,34 +56,18 @@ export async function GET(
       });
     }
 
-    // Fetch inventory for this variant
+    // Calculate available quantity from inventory_items -> inventory -> location_levels
     let availableQuantity = 0;
-    try {
-      // Query all inventory items and match by SKU or variant_id
-      const { data: inventoryItems } = await query.graph({
-        entity: "inventory_item",
-        fields: [
-          "id",
-          "sku",
-          "inventory_levels.*",
-        ],
-      });
-
-      // Find matching inventory item by SKU or variant_id
-      const matchingItem = inventoryItems?.find((item: any) => 
-        item.sku === variant.sku || item.variant_id === id
-      );
-
-      if (matchingItem) {
-        // Calculate available quantity from all inventory levels
-        availableQuantity = matchingItem.inventory_levels?.reduce(
-          (sum: number, level: any) => sum + (level.available_quantity || 0),
-          0
-        ) || 0;
+    if (variant.inventory_items && Array.isArray(variant.inventory_items)) {
+      for (const inventoryItem of variant.inventory_items) {
+        if (inventoryItem.inventory?.location_levels && Array.isArray(inventoryItem.inventory.location_levels)) {
+          const quantity = inventoryItem.inventory.location_levels.reduce(
+            (sum: number, level: any) => sum + (level.available_quantity || 0),
+            0
+          );
+          availableQuantity += quantity;
+        }
       }
-    } catch (error) {
-      console.error("Error fetching inventory:", error);
-      // Continue with 0 quantity if there's an error
     }
 
     // Format variant response
