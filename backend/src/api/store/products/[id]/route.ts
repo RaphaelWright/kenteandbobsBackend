@@ -33,7 +33,6 @@ export async function GET(
         "variants.*",
         "variants.prices.*",
         "variants.inventory_items.*",
-        "variants.inventory_items.inventory_levels.*",
         "categories.*",
         "tags.*",
         "options.*",
@@ -103,15 +102,50 @@ export async function GET(
       }
     }
 
+    // Fetch inventory levels separately
+    const inventoryItemIds = product.variants?.flatMap((v: any) => 
+      v.inventory_items?.map((item: any) => item.id) || []
+    ).filter(Boolean) || [];
+    
+    let inventoryLevelsByItemId: Record<string, any[]> = {};
+    if (inventoryItemIds.length > 0) {
+      try {
+        const { data: inventoryLevels } = await query.graph({
+          entity: "inventory_level",
+          fields: [
+            "id",
+            "inventory_item_id",
+            "available_quantity",
+            "stocked_quantity",
+          ],
+          filters: {
+            inventory_item_id: inventoryItemIds,
+          },
+        });
+
+        // Group inventory levels by inventory_item_id
+        inventoryLevelsByItemId = inventoryLevels.reduce((acc: Record<string, any[]>, level: any) => {
+          if (!acc[level.inventory_item_id]) {
+            acc[level.inventory_item_id] = [];
+          }
+          acc[level.inventory_item_id].push(level);
+          return acc;
+        }, {});
+      } catch (error) {
+        console.error("Error fetching inventory levels:", error.message);
+      }
+    }
+
     // Calculate total quantity
     const totalQuantity = product.variants?.reduce((sum: number, variant: any) => {
       const inventoryQuantity = variant.inventory_items?.reduce(
         (invSum: number, item: any) => {
-          // Sum across all inventory levels for this inventory item
-          const levelSum = item.inventory_levels?.reduce(
+          // Get inventory levels for this inventory item
+          const levels = inventoryLevelsByItemId[item.id] || [];
+          const levelSum = levels.reduce(
             (levelSum: number, level: any) => levelSum + (level.available_quantity || level.stocked_quantity || 0),
             0
-          ) || 0;
+          );
           return invSum + levelSum;
         },
         0
@@ -172,11 +206,12 @@ export async function GET(
           currency: variantPrice?.currency_code || "ghs",
           inventory_quantity: variant.inventory_items?.reduce(
             (sum: number, item: any) => {
-              // Sum across all inventory levels for this inventory item
-              const levelSum = item.inventory_levels?.reduce(
+              // Get inventory levels for this inventory item
+              const levels = inventoryLevelsByItemId[item.id] || [];
+              const levelSum = levels.reduce(
                 (levelSum: number, level: any) => levelSum + (level.available_quantity || level.stocked_quantity || 0),
                 0
-              ) || 0;
+              );
               return sum + levelSum;
             },
             0
