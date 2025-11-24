@@ -133,7 +133,78 @@ All cart endpoints are prefixed with `/store/cart`
 
 ---
 
-### 3. Delete Cart
+### 3. Update Cart
+
+**Endpoint:** `PATCH /store/cart`
+
+**Description:** Updates cart properties such as region, currency, email, and addresses. This is useful for updating cart settings without recreating the cart.
+
+**Authentication:** Optional (works for both authenticated and guest users)
+
+**Request Body:**
+```json
+{
+  "currency_code": "usd",
+  "region_id": "reg_01HZREG789",
+  "email": "customer@example.com",
+  "shipping_address": {
+    "first_name": "John",
+    "last_name": "Doe",
+    "address_1": "123 Main St",
+    "city": "Accra",
+    "province": "Greater Accra",
+    "postal_code": "GA001",
+    "country_code": "GH",
+    "phone": "+233241234567"
+  },
+  "billing_address": {
+    "first_name": "John",
+    "last_name": "Doe",
+    "address_1": "123 Main St",
+    "city": "Accra",
+    "province": "Greater Accra",
+    "postal_code": "GA001",
+    "country_code": "GH",
+    "phone": "+233241234567"
+  },
+  "cart_id": "cart_01HZXYZ123"
+}
+```
+
+**Fields:**
+- `currency_code` (optional): Currency code for the cart
+- `region_id` (optional): Region ID for the cart
+- `email` (optional): Customer email for guest checkout
+- `shipping_address` (optional): Shipping address object
+- `billing_address` (optional): Billing address object
+- `cart_id` (optional): Cart ID. Can also be provided via query param or session.
+
+**Response:** `200 OK`
+
+```json
+{
+  "message": "Cart updated successfully",
+  "cart": {
+    "id": "cart_01HZXYZ123",
+    "currency_code": "usd",
+    "region_id": "reg_01HZREG789",
+    "email": "customer@example.com",
+    "items": [...],
+    "subtotal": 10000,
+    "total": 10000,
+    ...
+  }
+}
+```
+
+**Error Responses:**
+- `400 Bad Request`: Missing cart_id
+- `404 Not Found`: Cart not found
+- `500 Internal Server Error`: Failed to update cart
+
+---
+
+### 4. Delete Cart
 
 **Endpoint:** `DELETE /store/cart`
 
@@ -158,7 +229,7 @@ All cart endpoints are prefixed with `/store/cart`
 
 ---
 
-### 4. Add Item to Cart
+### 5. Add Item to Cart
 
 **Endpoint:** `POST /store/cart/items`
 
@@ -202,7 +273,7 @@ an endpoint to pick all variants under a product id
 
 ---
 
-### 5. Update Cart Item
+### 6. Update Cart Item
 
 **Endpoint:** `PATCH /store/cart/items/:id`
 
@@ -247,7 +318,7 @@ an endpoint to pick all variants under a product id
 
 ---
 
-### 6. Remove Item from Cart
+### 7. Remove Item from Cart
 
 **Endpoint:** `DELETE /store/cart/items/:id`
 
@@ -290,7 +361,7 @@ an endpoint to pick all variants under a product id
 
 ---
 
-### 7. Complete Cart (Checkout)
+### 8. Complete Cart (Checkout)
 
 **Endpoint:** `POST /store/cart/complete`
 
@@ -340,20 +411,38 @@ an endpoint to pick all variants under a product id
 
 ```json
 {
-  "message": "Cart completed successfully",
-  "cart": {
-    "id": "cart_01HZXYZ123",
-    "items": [...],
+  "message": "Order created successfully",
+  "order": {
+    "id": "order_01HZORDER123",
+    "display_id": "1001",
+    "status": "pending",
+    "email": "customer@example.com",
+    "currency_code": "ghs",
+    "total": 10000,
+    "subtotal": 10000,
+    "tax_total": 0,
+    "shipping_total": 0,
+    "discount_total": 0,
+    "items": [
+      {
+        "id": "oi_01HZITEM001",
+        "title": "Product Name",
+        "quantity": 2,
+        "unit_price": 5000,
+        "total": 10000,
+        "product_id": "prod_01HZPROD123",
+        "variant_id": "variant_01HZVARIANT456"
+      }
+    ],
     "shipping_address": {...},
     "billing_address": {...},
-    "total": 10000,
-    ...
-  },
-  "note": "Order creation workflow should be implemented here"
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
 }
 ```
 
-**Note:** The actual order creation workflow should be implemented using Medusa workflows or order services.
+**Note:** This endpoint creates an actual order from the cart. The cart is automatically deleted after successful order creation.
 
 **Error Responses:**
 - `400 Bad Request`: Missing cart_id or cart is empty

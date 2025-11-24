@@ -1,6 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
 import { ICartModuleService, IOrderModuleService, ICustomerModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
+import { formatCartResponse, getCartId, getCustomerFromAuth } from "../helpers";
 
 /**
  * POST /store/cart/complete
@@ -42,7 +43,7 @@ export async function POST(
     };
 
     // Get cart_id from request body, query params, or session
-    const targetCartId = cart_id || req.query.cart_id || req.session?.cart_id;
+    const targetCartId = cart_id || getCartId(req);
 
     if (!targetCartId) {
       return res.status(400).json({
@@ -51,29 +52,15 @@ export async function POST(
       });
     }
 
-    // Get customer email from auth
-    const customerEmail = authContext.actor_id;
+    // Get customer from auth
+    const customer = await getCustomerFromAuth(authContext, customerModuleService);
 
-    if (!customerEmail) {
-      return res.status(400).json({
-        error: "Bad Request",
-        message: "Customer email not found",
-      });
-    }
-
-    // Find customer by email
-    const customers = await customerModuleService.listCustomers({
-      email: customerEmail,
-    });
-
-    if (!customers || customers.length === 0) {
+    if (!customer) {
       return res.status(404).json({
         error: "Customer not found",
         message: "Please complete your profile first",
       });
     }
-
-    const customer = customers[0];
 
     // Verify cart exists and belongs to customer
     let cart;
@@ -127,38 +114,96 @@ export async function POST(
       ]);
     }
 
-    // Complete the cart - this typically creates a draft order
-    // In Medusa, you might need to use a workflow or service to complete checkout
-    // For now, we'll create an order from the cart
+    // Retrieve updated cart with all relations
+    const completedCart = await cartModuleService.retrieveCart(targetCartId, {
+      relations: ["items", "items.variant", "items.product", "customer", "region"],
+    });
+
+    // Create order from cart
     try {
-      // Use Medusa's workflow or service to complete cart
-      // This is a simplified version - actual implementation may vary
-      const completedCart = await cartModuleService.retrieveCart(targetCartId, {
-        relations: ["items", "items.variant", "items.product", "customer", "region"],
+      // Prepare order items from cart items
+      const orderItems = completedCart.items.map((item: any) => ({
+        title: item.title,
+        subtitle: item.subtitle,
+        thumbnail: item.thumbnail,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        product_id: item.product_id,
+        variant_id: item.variant_id,
+      }));
+
+      // Create order
+      const order = await orderModuleService.createOrders({
+        email: customer.email,
+        customer_id: customer.id,
+        currency_code: completedCart.currency_code || "ghs",
+        region_id: completedCart.region_id,
+        items: orderItems,
+        shipping_address: completedCart.shipping_address || shipping_address,
+        billing_address: completedCart.billing_address || billing_address,
+        subtotal: completedCart.subtotal || 0,
+        tax_total: completedCart.tax_total || 0,
+        shipping_total: completedCart.shipping_total || 0,
+        discount_total: completedCart.discount_total || 0,
+        total: completedCart.total || 0,
       });
 
-      // Note: Actual order creation from cart typically uses Medusa workflows
-      // This is a placeholder - you may need to use:
-      // - createOrderFromCart workflow
-      // - or direct order service methods
-      
-      // For now, return success with cart details
-      // In production, you'd want to create the actual order here
-      const formattedCart = await formatCartResponse(completedCart, query);
+      // Format order response
+      const formattedOrder = {
+        id: order.id,
+        display_id: (order as any).display_id || order.id,
+        status: order.status,
+        email: order.email,
+        currency_code: order.currency_code,
+        total: order.total,
+        subtotal: order.subtotal,
+        tax_total: order.tax_total,
+        shipping_total: order.shipping_total,
+        discount_total: order.discount_total,
+        items: order.items?.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          subtitle: item.subtitle,
+          thumbnail: item.thumbnail,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total: item.total,
+          product_id: item.product_id,
+          variant_id: item.variant_id,
+        })) || [],
+        shipping_address: order.shipping_address,
+        billing_address: order.billing_address,
+        created_at: order.created_at,
+        updated_at: order.updated_at,
+      };
 
       // Clear cart from session after completion
       if (req.session) {
         delete req.session.cart_id;
       }
 
+      // Optionally delete the cart after order creation
+      try {
+        await cartModuleService.deleteCarts([targetCartId]);
+      } catch (error) {
+        console.warn("Failed to delete cart after order creation:", error);
+        // Don't fail the request if cart deletion fails
+      }
+
       res.status(200).json({
-        message: "Cart completed successfully",
-        cart: formattedCart,
-        note: "Order creation workflow should be implemented here",
+        message: "Order created successfully",
+        order: formattedOrder,
       });
     } catch (error) {
-      console.error("Error completing cart:", error);
-      throw error;
+      console.error("Error creating order:", error);
+      // If order creation fails, still return cart info for debugging
+      const formattedCart = await formatCartResponse(completedCart, query);
+      
+      res.status(500).json({
+        error: "Failed to create order",
+        message: error.message,
+        cart: formattedCart,
+      });
     }
   } catch (error) {
     console.error("Error completing cart:", error);
@@ -169,92 +214,4 @@ export async function POST(
   }
 }
 
-/**
- * Helper function to format cart response with product details
- */
-async function formatCartResponse(cart: any, query: any) {
-  // Fetch product details for cart items
-  const itemIds = cart.items?.map((item: any) => item.variant_id).filter(Boolean) || [];
-  
-  let productsMap: Record<string, any> = {};
-  
-  if (itemIds.length > 0) {
-    try {
-      const { data: products } = await query.graph({
-        entity: "product",
-        fields: [
-          "id",
-          "title",
-          "handle",
-          "thumbnail",
-          "variants.id",
-          "variants.title",
-          "variants.sku",
-          "variants.prices.*",
-        ],
-        filters: {
-          variants: {
-            id: itemIds,
-          },
-        },
-      });
-
-      // Build map of variant_id -> product
-      products.forEach((product: any) => {
-        product.variants?.forEach((variant: any) => {
-          productsMap[variant.id] = {
-            product: {
-              id: product.id,
-              title: product.title,
-              handle: product.handle,
-              thumbnail: product.thumbnail,
-            },
-            variant: {
-              id: variant.id,
-              title: variant.title,
-              sku: variant.sku,
-              price: variant.prices?.[0]?.amount || null,
-              currency: variant.prices?.[0]?.currency_code || "ghs",
-            },
-          };
-        });
-      });
-    } catch (error) {
-      console.error("Error fetching product details:", error);
-    }
-  }
-
-  return {
-    id: cart.id,
-    customer_id: cart.customer_id,
-    email: cart.email,
-    currency_code: cart.currency_code,
-    region_id: cart.region_id,
-    items: cart.items?.map((item: any) => {
-      const productInfo = productsMap[item.variant_id] || {};
-      return {
-        id: item.id,
-        title: item.title,
-        subtitle: item.subtitle,
-        thumbnail: item.thumbnail,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total: item.total,
-        product_id: item.product_id,
-        variant_id: item.variant_id,
-        product: productInfo.product || null,
-        variant: productInfo.variant || null,
-      };
-    }) || [],
-    subtotal: cart.subtotal || 0,
-    tax_total: cart.tax_total || 0,
-    shipping_total: cart.shipping_total || 0,
-    discount_total: cart.discount_total || 0,
-    total: cart.total || 0,
-    shipping_address: cart.shipping_address,
-    billing_address: cart.billing_address,
-    created_at: cart.created_at,
-    updated_at: cart.updated_at,
-  };
-}
 

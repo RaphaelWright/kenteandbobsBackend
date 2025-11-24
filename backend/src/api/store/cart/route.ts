@@ -1,6 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
 import { ICartModuleService, ICustomerModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
+import { formatCartResponse, getCartId, getCustomerFromAuth } from "./helpers";
 
 /**
  * GET /store/cart
@@ -36,7 +37,7 @@ export async function GET(
     }
 
     // Try to get cart_id from query params or session
-    const cartId = (req.query.cart_id as string) || req.session?.cart_id;
+    const cartId = getCartId(req);
 
     let cart;
     
@@ -143,6 +144,121 @@ export async function POST(
 }
 
 /**
+ * PATCH /store/cart
+ * Update cart properties (region, currency, email, addresses)
+ * Supports both authenticated and guest users
+ */
+export async function PATCH(
+  req: MedusaRequest,
+  res: MedusaResponse
+) {
+  try {
+    const cartModuleService: ICartModuleService = req.scope.resolve(Modules.CART);
+    const customerModuleService: ICustomerModuleService = req.scope.resolve(Modules.CUSTOMER);
+    const query = req.scope.resolve("query");
+
+    const cartId = getCartId(req);
+
+    if (!cartId) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "cart_id is required",
+      });
+    }
+
+    // Verify cart exists
+    let cart;
+    try {
+      cart = await cartModuleService.retrieveCart(cartId);
+    } catch (error) {
+      return res.status(404).json({
+        error: "Cart not found",
+        message: "The specified cart does not exist",
+      });
+    }
+
+    // Get update data from request body
+    const {
+      currency_code,
+      region_id,
+      email,
+      shipping_address,
+      billing_address,
+    } = req.body as {
+      currency_code?: string;
+      region_id?: string;
+      email?: string;
+      shipping_address?: any;
+      billing_address?: any;
+    };
+
+    // Build update object
+    const updateData: any = {};
+
+    if (currency_code !== undefined) {
+      updateData.currency_code = currency_code;
+    }
+
+    if (region_id !== undefined) {
+      updateData.region_id = region_id;
+    }
+
+    if (email !== undefined) {
+      updateData.email = email;
+    }
+
+    if (shipping_address !== undefined) {
+      updateData.shipping_address = shipping_address;
+    }
+
+    if (billing_address !== undefined) {
+      updateData.billing_address = billing_address;
+    }
+
+    // Check if user is authenticated and link customer if needed
+    const authContext = req.session?.auth_context;
+    if (authContext?.auth_identity_id) {
+      const customer = await getCustomerFromAuth(authContext, customerModuleService);
+      if (customer && !cart.customer_id) {
+        updateData.customer_id = customer.id;
+        if (!updateData.email) {
+          updateData.email = customer.email;
+        }
+      }
+    }
+
+    // Update cart if there are changes
+    if (Object.keys(updateData).length > 0) {
+      await cartModuleService.updateCarts([
+        {
+          id: cartId,
+          ...updateData,
+        },
+      ]);
+    }
+
+    // Fetch updated cart with relations
+    const updatedCart = await cartModuleService.retrieveCart(cartId, {
+      relations: ["items", "items.variant", "items.product", "customer", "region", "region.currency"],
+    });
+
+    // Format cart response
+    const formattedCart = await formatCartResponse(updatedCart, query);
+
+    res.json({
+      message: "Cart updated successfully",
+      cart: formattedCart,
+    });
+  } catch (error) {
+    console.error("Error updating cart:", error);
+    res.status(500).json({
+      error: "Failed to update cart",
+      message: error.message,
+    });
+  }
+}
+
+/**
  * DELETE /store/cart
  * Delete/clear cart
  */
@@ -153,11 +269,22 @@ export async function DELETE(
   try {
     const cartModuleService: ICartModuleService = req.scope.resolve(Modules.CART);
 
-    const cartId = req.query.cart_id as string || req.session?.cart_id;
+    const cartId = getCartId(req);
 
     if (!cartId) {
       return res.status(404).json({
         error: "Cart not found",
+        message: "No cart ID provided",
+      });
+    }
+
+    // Verify cart exists
+    try {
+      await cartModuleService.retrieveCart(cartId);
+    } catch (error) {
+      return res.status(404).json({
+        error: "Cart not found",
+        message: "The specified cart does not exist",
       });
     }
 
@@ -181,90 +308,4 @@ export async function DELETE(
   }
 }
 
-/**
- * Helper function to format cart response with product details
- */
-async function formatCartResponse(cart: any, query: any) {
-  // Fetch product details for cart items
-  const itemIds = cart.items?.map((item: any) => item.variant_id).filter(Boolean) || [];
-  
-  let productsMap: Record<string, any> = {};
-  
-  if (itemIds.length > 0) {
-    try {
-      const { data: products } = await query.graph({
-        entity: "product",
-        fields: [
-          "id",
-          "title",
-          "handle",
-          "thumbnail",
-          "variants.id",
-          "variants.title",
-          "variants.sku",
-          "variants.prices.*",
-        ],
-        filters: {
-          variants: {
-            id: itemIds,
-          },
-        },
-      });
-
-      // Build map of variant_id -> product
-      products.forEach((product: any) => {
-        product.variants?.forEach((variant: any) => {
-          productsMap[variant.id] = {
-            product: {
-              id: product.id,
-              title: product.title,
-              handle: product.handle,
-              thumbnail: product.thumbnail,
-            },
-            variant: {
-              id: variant.id,
-              title: variant.title,
-              sku: variant.sku,
-              price: variant.prices?.[0]?.amount || null,
-              currency: variant.prices?.[0]?.currency_code || "ghs",
-            },
-          };
-        });
-      });
-    } catch (error) {
-      console.error("Error fetching product details:", error);
-    }
-  }
-
-  return {
-    id: cart.id,
-    customer_id: cart.customer_id,
-    email: cart.email,
-    currency_code: cart.currency_code,
-    region_id: cart.region_id,
-    items: cart.items?.map((item: any) => {
-      const productInfo = productsMap[item.variant_id] || {};
-      return {
-        id: item.id,
-        title: item.title,
-        subtitle: item.subtitle,
-        thumbnail: item.thumbnail,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total: item.total,
-        product_id: item.product_id,
-        variant_id: item.variant_id,
-        product: productInfo.product || null,
-        variant: productInfo.variant || null,
-      };
-    }) || [],
-    subtotal: cart.subtotal || 0,
-    tax_total: cart.tax_total || 0,
-    shipping_total: cart.shipping_total || 0,
-    discount_total: cart.discount_total || 0,
-    total: cart.total || 0,
-    created_at: cart.created_at,
-    updated_at: cart.updated_at,
-  };
-}
 

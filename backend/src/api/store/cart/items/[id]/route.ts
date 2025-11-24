@@ -1,6 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
 import { ICartModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
+import { formatCartResponse, getCartId } from "../../helpers";
 
 /**
  * PATCH /store/cart/items/:id
@@ -41,7 +42,7 @@ export async function PATCH(
     }
 
     // Get cart_id from request body, query params, or session
-    const targetCartId = cart_id || req.query.cart_id || req.session?.cart_id;
+    const targetCartId = cart_id || getCartId(req);
 
     if (!targetCartId) {
       return res.status(400).json({
@@ -125,7 +126,7 @@ export async function DELETE(
     }
 
     // Get cart_id from request body, query params, or session
-    const targetCartId = cart_id || req.query.cart_id || req.session?.cart_id;
+    const targetCartId = cart_id || getCartId(req);
 
     if (!targetCartId) {
       return res.status(400).json({
@@ -179,90 +180,4 @@ export async function DELETE(
   }
 }
 
-/**
- * Helper function to format cart response with product details
- */
-async function formatCartResponse(cart: any, query: any) {
-  // Fetch product details for cart items
-  const itemIds = cart.items?.map((item: any) => item.variant_id).filter(Boolean) || [];
-  
-  let productsMap: Record<string, any> = {};
-  
-  if (itemIds.length > 0) {
-    try {
-      const { data: products } = await query.graph({
-        entity: "product",
-        fields: [
-          "id",
-          "title",
-          "handle",
-          "thumbnail",
-          "variants.id",
-          "variants.title",
-          "variants.sku",
-          "variants.prices.*",
-        ],
-        filters: {
-          variants: {
-            id: itemIds,
-          },
-        },
-      });
-
-      // Build map of variant_id -> product
-      products.forEach((product: any) => {
-        product.variants?.forEach((variant: any) => {
-          productsMap[variant.id] = {
-            product: {
-              id: product.id,
-              title: product.title,
-              handle: product.handle,
-              thumbnail: product.thumbnail,
-            },
-            variant: {
-              id: variant.id,
-              title: variant.title,
-              sku: variant.sku,
-              price: variant.prices?.[0]?.amount || null,
-              currency: variant.prices?.[0]?.currency_code || "ghs",
-            },
-          };
-        });
-      });
-    } catch (error) {
-      console.error("Error fetching product details:", error);
-    }
-  }
-
-  return {
-    id: cart.id,
-    customer_id: cart.customer_id,
-    email: cart.email,
-    currency_code: cart.currency_code,
-    region_id: cart.region_id,
-    items: cart.items?.map((item: any) => {
-      const productInfo = productsMap[item.variant_id] || {};
-      return {
-        id: item.id,
-        title: item.title,
-        subtitle: item.subtitle,
-        thumbnail: item.thumbnail,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total: item.total,
-        product_id: item.product_id,
-        variant_id: item.variant_id,
-        product: productInfo.product || null,
-        variant: productInfo.variant || null,
-      };
-    }) || [],
-    subtotal: cart.subtotal || 0,
-    tax_total: cart.tax_total || 0,
-    shipping_total: cart.shipping_total || 0,
-    discount_total: cart.discount_total || 0,
-    total: cart.total || 0,
-    created_at: cart.created_at,
-    updated_at: cart.updated_at,
-  };
-}
 

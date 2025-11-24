@@ -239,7 +239,82 @@ async function getCart() {
 
 ---
 
-### 6. Complete Checkout (Requires Authentication)
+### 6. Update Cart Properties
+
+Update cart settings like currency, region, email, or addresses:
+
+```typescript
+async function updateCart(updates: {
+  currency_code?: string;
+  region_id?: string;
+  email?: string;
+  shipping_address?: Address;
+  billing_address?: Address;
+}) {
+  try {
+    const response = await fetch('/store/cart', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(updates),
+    });
+
+    const data = await response.json();
+    
+    if (response.ok) {
+      return data.cart;
+    } else {
+      throw new Error(data.message || 'Failed to update cart');
+    }
+  } catch (error) {
+    console.error('Error updating cart:', error);
+    throw error;
+  }
+}
+
+// Usage examples
+// Change currency
+await updateCart({ currency_code: 'usd' });
+
+// Update email for guest checkout
+await updateCart({ email: 'customer@example.com' });
+
+// Update shipping address
+await updateCart({
+  shipping_address: {
+    first_name: 'John',
+    last_name: 'Doe',
+    address_1: '123 Main St',
+    city: 'Accra',
+    province: 'Greater Accra',
+    postal_code: 'GA001',
+    country_code: 'GH',
+    phone: '+233241234567'
+  }
+});
+```
+
+**Response:**
+```json
+{
+  "message": "Cart updated successfully",
+  "cart": {
+    "id": "cart_01HZXYZ123",
+    "currency_code": "usd",
+    "region_id": "reg_01HZREG789",
+    "email": "customer@example.com",
+    "items": [...],
+    "subtotal": 10000,
+    "total": 10000
+  }
+}
+```
+
+---
+
+### 7. Complete Checkout (Requires Authentication)
 
 When user proceeds to checkout:
 
@@ -271,7 +346,8 @@ async function completeCheckout(
     const data = await response.json();
     
     if (response.ok) {
-      return data;
+      // Returns order object, not cart
+      return data.order;
     } else if (response.status === 401) {
       // Redirect to login
       throw new Error('Please log in to complete checkout');
@@ -298,7 +374,7 @@ interface Address {
 }
 
 // Usage
-const result = await completeCheckout(
+const order = await completeCheckout(
   {
     first_name: 'John',
     last_name: 'Doe',
@@ -321,13 +397,73 @@ const result = await completeCheckout(
     phone: '+233241234567'
   }
 );
+
+// Order is created and cart is automatically deleted
+console.log('Order ID:', order.id);
+console.log('Order Status:', order.status);
 ```
 
-**Note**: This endpoint requires authentication. If user is not logged in, they should be redirected to login first.
+**Response:**
+```json
+{
+  "message": "Order created successfully",
+  "order": {
+    "id": "order_01HZORDER123",
+    "display_id": "1001",
+    "status": "pending",
+    "email": "customer@example.com",
+    "currency_code": "ghs",
+    "total": 10000,
+    "subtotal": 10000,
+    "tax_total": 0,
+    "shipping_total": 0,
+    "discount_total": 0,
+    "items": [
+      {
+        "id": "oi_01HZITEM001",
+        "title": "Product Name",
+        "quantity": 2,
+        "unit_price": 5000,
+        "total": 10000,
+        "product_id": "prod_01HZPROD123",
+        "variant_id": "variant_01HZVARIANT456"
+      }
+    ],
+    "shipping_address": {
+      "first_name": "John",
+      "last_name": "Doe",
+      "address_1": "123 Main St",
+      "city": "Accra",
+      "province": "Greater Accra",
+      "postal_code": "GA001",
+      "country_code": "GH",
+      "phone": "+233241234567"
+    },
+    "billing_address": {
+      "first_name": "John",
+      "last_name": "Doe",
+      "address_1": "123 Main St",
+      "city": "Accra",
+      "province": "Greater Accra",
+      "postal_code": "GA001",
+      "country_code": "GH",
+      "phone": "+233241234567"
+    },
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
+}
+```
+
+**Important Notes:**
+- This endpoint requires authentication. If user is not logged in, they should be redirected to login first.
+- **The cart is automatically deleted after successful order creation.**
+- The response contains an `order` object, not a `cart` object.
+- You should redirect the user to an order confirmation page after successful checkout.
 
 ---
 
-### 7. Clear Cart
+### 8. Clear Cart
 
 When user wants to empty cart:
 
@@ -505,6 +641,39 @@ export function useCart() {
     }
   }, []);
 
+  const updateCart = useCallback(async (updates: {
+    currency_code?: string;
+    region_id?: string;
+    email?: string;
+    shipping_address?: any;
+    billing_address?: any;
+  }) => {
+    try {
+      setLoading(true);
+      const response = await fetch(API_BASE, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(updates),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update cart');
+      }
+
+      const data = await response.json();
+      setCart(data.cart);
+      setError(null);
+      return data.cart;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const clearCart = useCallback(async () => {
     try {
       setLoading(true);
@@ -525,6 +694,46 @@ export function useCart() {
     }
   }, []);
 
+  const completeCheckout = useCallback(async (
+    shippingAddress: any,
+    billingAddress: any,
+    shippingMethodId?: string
+  ) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          shipping_address: shippingAddress,
+          billing_address: billingAddress,
+          shipping_method_id: shippingMethodId,
+          payment_provider_id: 'stripe',
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        if (response.status === 401) {
+          throw new Error('Please log in to complete checkout');
+        }
+        throw new Error(error.message || 'Failed to complete checkout');
+      }
+
+      const data = await response.json();
+      // Clear cart after successful checkout
+      setCart(null);
+      setError(null);
+      return data.order;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   return {
     cart,
     loading,
@@ -532,7 +741,9 @@ export function useCart() {
     addToCart,
     updateItem,
     removeItem,
+    updateCart,
     clearCart,
+    completeCheckout,
     refreshCart: fetchCart,
     itemCount: cart?.items.reduce((sum, item) => sum + item.quantity, 0) || 0,
   };
@@ -592,7 +803,8 @@ function ProductPage({ variantId }: { variantId: string }) {
 ### Authentication Flow
 - Guest users can add items to cart without login
 - Checkout requires authentication
-- When user logs in, you may want to merge guest cart with their account cart
+- When user logs in, cart is automatically linked to their account
+- Guest cart items are preserved when user logs in
 
 ### Best Practices
 1. **Initialize cart on app load** - Call `GET /store/cart` when app starts
@@ -600,6 +812,8 @@ function ProductPage({ variantId }: { variantId: string }) {
 3. **Handle loading states** - Show loading indicators during cart operations
 4. **Optimistic updates** - Update UI immediately, then sync with server response
 5. **Error recovery** - If cart operation fails, refresh cart state
+6. **Update cart before checkout** - Use `PATCH /store/cart` to set addresses, currency, or region before completing checkout
+7. **Handle order creation** - After successful checkout, redirect to order confirmation page (cart is automatically deleted)
 
 ---
 
@@ -660,6 +874,43 @@ function CartBadge() {
 }
 ```
 
+### Pattern 4: Complete Checkout Flow
+
+```typescript
+async function handleCheckout(
+  shippingAddress: Address,
+  billingAddress: Address
+) {
+  try {
+    // 1. Update cart with addresses before checkout
+    await updateCart({
+      shipping_address: shippingAddress,
+      billing_address: billingAddress,
+    });
+
+    // 2. Complete checkout (creates order)
+    const order = await completeCheckout(
+      shippingAddress,
+      billingAddress
+    );
+
+    // 3. Redirect to order confirmation
+    router.push(`/orders/${order.id}`);
+    
+    return order;
+  } catch (error) {
+    if (error.message.includes('log in')) {
+      // Redirect to login
+      router.push('/login?redirect=/checkout');
+    } else {
+      // Show error message
+      alert(`Checkout failed: ${error.message}`);
+    }
+    throw error;
+  }
+}
+```
+
 ---
 
 ## Testing
@@ -708,10 +959,11 @@ console.log('Final items:', finalCart.items.length);
 All endpoints are prefixed with `/store/cart`:
 - `GET /store/cart` - Get or create cart
 - `POST /store/cart` - Create cart explicitly
+- `PATCH /store/cart` - Update cart properties (currency, region, email, addresses)
 - `DELETE /store/cart` - Delete cart
 - `POST /store/cart/items` - Add item
-- `PATCH /store/cart/items/:id` - Update item
+- `PATCH /store/cart/items/:id` - Update item quantity
 - `DELETE /store/cart/items/:id` - Remove item
-- `POST /store/cart/complete` - Complete checkout
+- `POST /store/cart/complete` - Complete checkout (creates order)
 
 
