@@ -52,7 +52,7 @@ export async function GET(
         "variants.*",
         "variants.prices.*",
         "variants.inventory_items.*",
-        "variants.inventory_items.inventory.*",
+        "variants.inventory_items.inventory_levels.*",
       ],
       filters: {
         id: productIds,
@@ -84,7 +84,14 @@ export async function GET(
       // Calculate total quantity
       const totalQuantity = product.variants?.reduce((sum: number, variant: any) => {
         const inventoryQuantity = variant.inventory_items?.reduce(
-          (invSum: number, item: any) => invSum + (item.inventory?.stocked_quantity || 0),
+          (invSum: number, item: any) => {
+            // Sum across all inventory levels for this inventory item
+            const levelSum = item.inventory_levels?.reduce(
+              (levelSum: number, level: any) => levelSum + (level.available_quantity || level.stocked_quantity || 0),
+              0
+            ) || 0;
+            return invSum + levelSum;
+          },
           0
         );
         return sum + (inventoryQuantity || 0);
@@ -121,7 +128,14 @@ export async function GET(
           price: variant.prices?.[0]?.amount || null,
           currency: variant.prices?.[0]?.currency_code || "ghs",
           inventory_quantity: variant.inventory_items?.reduce(
-            (sum: number, item: any) => sum + (item.inventory?.stocked_quantity || 0),
+            (sum: number, item: any) => {
+              // Sum across all inventory levels for this inventory item
+              const levelSum = item.inventory_levels?.reduce(
+                (levelSum: number, level: any) => levelSum + (level.available_quantity || level.stocked_quantity || 0),
+                0
+              ) || 0;
+              return sum + levelSum;
+            },
             0
           ) || 0,
         } : null,
