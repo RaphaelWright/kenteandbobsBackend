@@ -34,6 +34,7 @@
     "@medusajs/medusa": "2.10.2",
     "@medusajs/notification-sendgrid": "2.10.2",
     "@medusajs/payment-stripe": "2.10.2",
+    "@medusajs/pricing": "^2.11.3",
     "@medusajs/workflow-engine-redis": "2.10.2",
     "@mikro-orm/core": "6.4.3",
     "@mikro-orm/knex": "6.4.3",

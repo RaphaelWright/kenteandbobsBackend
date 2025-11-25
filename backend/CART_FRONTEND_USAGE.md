@@ -58,7 +58,10 @@ async function initializeCart() {
 }
 ```
 
-**Important**: Always use `credentials: 'include'` to send/receive cookies for session management.
+**Important**
+- Always use `credentials: 'include'` to send/receive cookies for session management.
+- When a guest user signs in, calling `GET /store/cart` immediately after login automatically links the existing cart to their customer account, so `customer_id` and `email` populate in the response.
+- The backend now resolves `region_id` automatically based on the store configuration, so you typically don’t need to handle regions manually on the frontend (but at least one region must exist in the admin).
 
 ---
 
@@ -846,15 +849,10 @@ async function handleLogin(email: string, password: string) {
   // 1. Login user
   await login(email, password);
   
-  // 2. Get current guest cart
-  const guestCart = await getCart();
+  // 2. Re-fetch cart to link it to the authenticated customer
+  const userCart = await getCart(); // backend now attaches customer_id/email
   
-  // 3. After login, cart is automatically linked to customer
-  // Items from guest cart should be preserved
-  const userCart = await getCart();
-  
-  // 4. If needed, merge items manually
-  // (Backend should handle this automatically)
+  // 3. Continue checkout flow with userCart
 }
 ```
 

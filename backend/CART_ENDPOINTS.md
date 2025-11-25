@@ -90,11 +90,11 @@ All cart endpoints are prefixed with `/store/cart`
 
 **Endpoint:** `POST /store/cart`
 
-**Description:** Explicitly creates a new cart with specified currency and region.
+**Description:** Explicitly creates a new cart. The backend automatically assigns a valid region if you omit `region_id`, but you can also provide one explicitly.
 
 **Authentication:** Optional (works for both authenticated and guest users)
 
-**Request Body:**
+**Request Body (optional):**
 ```json
 {
   "currency_code": "ghs",
@@ -103,8 +103,9 @@ All cart endpoints are prefixed with `/store/cart`
 ```
 
 **Fields:**
-- `currency_code` (optional, default: "ghs"): Currency code for the cart
-- `region_id` (optional): Region ID for the cart
+- `currency_code` (optional, default: "ghs"): Currency code for the cart.
+- `region_id` (optional but recommended): Region ID for the cart.  
+  If omitted, the backend resolves one automatically based on `currency_code` (or falls back to the first available region). This ensures the cart always has a valid region for pricing.
 
 **Response:** `201 Created`
 
