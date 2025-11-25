@@ -140,7 +140,8 @@ export async function POST(
 
       // Create order with required structure
       // Using type assertion since CreateOrderDTO structure may vary
-      const order = await orderModuleService.createOrders({
+      // Note: createOrders can return an array or single order
+      const orderResult = await orderModuleService.createOrders({
         currency_code: completedCart.currency_code || "ghs",
         region_id: completedCart.region_id,
         items: orderItems,
@@ -149,6 +150,13 @@ export async function POST(
         ...(finalShippingAddress && { shipping_address: finalShippingAddress }),
         ...(finalBillingAddress && { billing_address: finalBillingAddress }),
       } as any);
+
+      // Handle both array and single order return types
+      const order = Array.isArray(orderResult) ? orderResult[0] : orderResult;
+
+      if (!order) {
+        throw new Error("Failed to create order - no order returned");
+      }
 
       // Format order response
       const formattedOrder = {
