@@ -132,21 +132,23 @@ export async function POST(
         variant_id: item.variant_id,
       }));
 
-      // Create order
+      // Prepare order data
+      // Note: Medusa's CreateOrderDTO has specific required fields
+      // We'll use a type assertion to work with the order service
+      const finalShippingAddress = completedCart.shipping_address || shipping_address;
+      const finalBillingAddress = completedCart.billing_address || billing_address;
+
+      // Create order with required structure
+      // Using type assertion since CreateOrderDTO structure may vary
       const order = await orderModuleService.createOrders({
-        email: customer.email,
-        customer_id: customer.id,
         currency_code: completedCart.currency_code || "ghs",
         region_id: completedCart.region_id,
         items: orderItems,
-        shipping_address: completedCart.shipping_address || shipping_address,
-        billing_address: completedCart.billing_address || billing_address,
-        subtotal: completedCart.subtotal || 0,
-        tax_total: completedCart.tax_total || 0,
-        shipping_total: completedCart.shipping_total || 0,
-        discount_total: completedCart.discount_total || 0,
-        total: completedCart.total || 0,
-      });
+        ...(customer.id && { customer_id: customer.id }),
+        ...(customer.email && { email: customer.email }),
+        ...(finalShippingAddress && { shipping_address: finalShippingAddress }),
+        ...(finalBillingAddress && { billing_address: finalBillingAddress }),
+      } as any);
 
       // Format order response
       const formattedOrder = {
