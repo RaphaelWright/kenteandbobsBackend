@@ -230,6 +230,58 @@ All cart endpoints are prefixed with `/store/cart`
 
 ---
 
+### 4.5. Reset Cart
+
+**Endpoint:** `POST /store/cart/reset`
+
+**Description:** Deletes the current cart and creates a fresh new one. Useful when the cart is in a corrupted state or experiencing issues.
+
+**Authentication:** Optional (works for both authenticated and guest users)
+
+**Request Body (optional):**
+```json
+{
+  "region_id": "reg_01HZREG789",
+  "currency_code": "ghs"
+}
+```
+
+**Fields:**
+- `region_id` (optional): Region ID for the new cart. If not provided, auto-resolves based on currency.
+- `currency_code` (optional, default: "ghs"): Currency code for the new cart.
+
+**Response:** `201 Created`
+
+```json
+{
+  "message": "Cart reset successfully",
+  "cart": {
+    "id": "cart_01HZNEWCART456",
+    "customer_id": "cus_01HZABC456",
+    "email": "customer@example.com",
+    "currency_code": "ghs",
+    "region_id": "reg_01HZREG789",
+    "items": [],
+    "subtotal": 0,
+    "total": 0,
+    ...
+  },
+  "previous_cart_id": "cart_01HZOLDCART123"
+}
+```
+
+**Use Cases:**
+- Cart experiencing MikroORM errors
+- "Items do not have a price" errors that persist
+- Cart in corrupted or invalid state
+- Need to change region without migrating items
+
+**Error Responses:**
+- `400 Bad Request`: Invalid region_id
+- `500 Internal Server Error`: Failed to reset cart
+
+---
+
 ### 5. Add Item to Cart
 
 **Endpoint:** `POST /store/cart/items`
@@ -268,9 +320,15 @@ an endpoint to pick all variants under a product id
 ```
 
 **Error Responses:**
-- `400 Bad Request`: Missing required fields or invalid quantity
+- `400 Bad Request`: Missing required fields, invalid quantity, or pricing error (variant price not available for cart's region)
 - `404 Not Found`: Cart not found
 - `500 Internal Server Error`: Failed to add item
+
+**Common Issues:**
+- **"Items do not have a price"**: The variant's price doesn't match the cart's region. Solution: Update cart region with `PATCH /store/cart` or use `POST /store/cart/reset`.
+- **MikroORM errors**: Cart may be corrupted. Solution: Use `POST /store/cart/reset` to create a fresh cart.
+
+**See Also:** `CART_TROUBLESHOOTING.md` for detailed solutions.
 
 ---
 

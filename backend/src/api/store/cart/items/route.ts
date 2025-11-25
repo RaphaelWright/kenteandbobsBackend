@@ -44,16 +44,26 @@ export async function POST(
       });
     }
 
-    // Verify cart exists
+    // Verify cart exists using simpler retrieval (avoid MikroORM filter issues)
     let cart;
     try {
-      cart = await cartModuleService.retrieveCart(targetCartId, {
-        relations: ["items"],
-      });
+      // First try with minimal relations to avoid MikroORM issues
+      cart = await cartModuleService.retrieveCart(targetCartId);
+      
+      // Manually fetch items if needed using query
+      if (!cart.items) {
+        const { data: cartWithItems } = await query.graph({
+          entity: "cart",
+          fields: ["id", "items.*"],
+          filters: { id: targetCartId },
+        });
+        cart.items = cartWithItems?.[0]?.items || [];
+      }
     } catch (error) {
+      console.error("Error retrieving cart:", error);
       return res.status(404).json({
         error: "Cart not found",
-        message: "The specified cart does not exist",
+        message: "The specified cart does not exist or is in an invalid state. Try creating a new cart.",
       });
     }
 
@@ -66,53 +76,87 @@ export async function POST(
       // Update quantity if item exists
       const newQuantity = existingItem.quantity + quantity;
       
-      await updateLineItemInCartWorkflow(req.scope).run({
-        input: {
-          cart_id: targetCartId,
-          item_id: existingItem.id,
-          update: {
-            quantity: newQuantity,
+      try {
+        await updateLineItemInCartWorkflow(req.scope).run({
+          input: {
+            cart_id: targetCartId,
+            item_id: existingItem.id,
+            update: {
+              quantity: newQuantity,
+            },
           },
-        },
-      });
+        });
 
-      // Fetch updated cart with details
-      const refreshedCart = await cartModuleService.retrieveCart(targetCartId, {
-        relations: ["items", "items.variant", "items.product"],
-      });
+        // Fetch updated cart using query graph to avoid MikroORM issues
+        const { data: carts } = await query.graph({
+          entity: "cart",
+          fields: ["id", "customer_id", "email", "currency_code", "region_id", "items.*"],
+          filters: { id: targetCartId },
+        });
 
-      const formattedCart = await formatCartResponse(refreshedCart, query);
+        const refreshedCart = carts?.[0];
+        if (!refreshedCart) {
+          throw new Error("Cart not found after update");
+        }
 
-      return res.json({
-        message: "Item quantity updated in cart",
-        cart: formattedCart,
-      });
+        const formattedCart = await formatCartResponse(refreshedCart, query);
+
+        return res.json({
+          message: "Item quantity updated in cart",
+          cart: formattedCart,
+        });
+      } catch (error) {
+        console.error("Error updating item quantity:", error);
+        throw error;
+      }
     }
 
     // Add new item to cart using workflow
-    await addToCartWorkflow(req.scope).run({
-      input: {
-        items: [
-          {
-            variant_id,
-            quantity,
-          },
-        ],
-        cart_id: targetCartId,
-      },
-    });
+    try {
+      await addToCartWorkflow(req.scope).run({
+        input: {
+          items: [
+            {
+              variant_id,
+              quantity,
+            },
+          ],
+          cart_id: targetCartId,
+        },
+      });
 
-    // Fetch updated cart with details
-    const updatedCart = await cartModuleService.retrieveCart(targetCartId, {
-      relations: ["items", "items.variant", "items.product"],
-    });
+      // Fetch updated cart using query graph to avoid MikroORM issues
+      const { data: carts } = await query.graph({
+        entity: "cart",
+        fields: ["id", "customer_id", "email", "currency_code", "region_id", "items.*"],
+        filters: { id: targetCartId },
+      });
 
-    const formattedCart = await formatCartResponse(updatedCart, query);
+      const updatedCart = carts?.[0];
+      if (!updatedCart) {
+        throw new Error("Cart not found after adding item");
+      }
 
-    res.status(201).json({
-      message: "Item added to cart successfully",
-      cart: formattedCart,
-    });
+      const formattedCart = await formatCartResponse(updatedCart, query);
+
+      res.status(201).json({
+        message: "Item added to cart successfully",
+        cart: formattedCart,
+      });
+    } catch (workflowError) {
+      console.error("Workflow error details:", workflowError);
+      
+      // Check if it's a pricing issue
+      if (workflowError.message?.includes("price")) {
+        return res.status(400).json({
+          error: "Pricing error",
+          message: "Cannot add item: variant price not available for this cart's region. Please update your cart region or add a price for this region.",
+          details: workflowError.message,
+        });
+      }
+      
+      throw workflowError;
+    }
   } catch (error) {
     console.error("Error adding item to cart:", error);
     res.status(500).json({
