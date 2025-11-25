@@ -69,11 +69,6 @@ const medusaConfig = {
       key: 'wishlistModuleService',
     },
     {
-      key: Modules.PRICING,
-      resolve: "@medusajs/pricing",
-      options: {}
-    },
-    {
       key: Modules.AUTH,
       resolve: '@medusajs/auth',
       options: {

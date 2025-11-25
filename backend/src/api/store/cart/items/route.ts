@@ -1,4 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
+import { addToCartWorkflow, updateLineItemInCartWorkflow } from "@medusajs/medusa/core-flows";
 import { ICartModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
 import { formatCartResponse, getCartId } from "../helpers";
@@ -46,7 +47,9 @@ export async function POST(
     // Verify cart exists
     let cart;
     try {
-      cart = await cartModuleService.retrieveCart(targetCartId);
+      cart = await cartModuleService.retrieveCart(targetCartId, {
+        relations: ["items"],
+      });
     } catch (error) {
       return res.status(404).json({
         error: "Cart not found",
@@ -62,12 +65,16 @@ export async function POST(
     if (existingItem) {
       // Update quantity if item exists
       const newQuantity = existingItem.quantity + quantity;
-      await cartModuleService.updateLineItems([
-        {
-          id: existingItem.id,
-          quantity: newQuantity,
+      
+      await updateLineItemInCartWorkflow(req.scope).run({
+        input: {
+          cart_id: targetCartId,
+          item_id: existingItem.id,
+          update: {
+            quantity: newQuantity,
+          },
         },
-      ]);
+      });
 
       // Fetch updated cart with details
       const refreshedCart = await cartModuleService.retrieveCart(targetCartId, {
@@ -82,65 +89,18 @@ export async function POST(
       });
     }
 
-    // Fetch variant details to get title and unit_price for adding to cart
-    // Query through product to get variant details
-    const { data: products } = await query.graph({
-      entity: "product",
-      fields: [
-        "id",
-        "title",
-        "variants.id",
-        "variants.title",
-        "variants.prices.*",
-      ],
-      filters: {
-        variants: {
-          id: variant_id,
-        },
+    // Add new item to cart using workflow
+    await addToCartWorkflow(req.scope).run({
+      input: {
+        items: [
+          {
+            variant_id,
+            quantity,
+          },
+        ],
+        cart_id: targetCartId,
       },
     });
-
-    let variant: any = null;
-    let price: any = null;
-    
-    // Find the variant from products
-    if (products && products.length > 0) {
-      for (const product of products) {
-        variant = product.variants?.find((v: any) => v.id === variant_id);
-        if (variant) {
-          price = variant.prices?.[0];
-          break;
-        }
-      }
-    }
-
-    if (!variant) {
-      return res.status(404).json({
-        error: "Variant not found",
-        message: "The specified variant does not exist",
-      });
-    }
-    
-    if (!price) {
-      return res.status(400).json({
-        error: "Bad Request",
-        message: "Variant does not have a price",
-      });
-    }
-
-    // Get product title for the cart item
-    const product = products?.find((p: any) => p.variants?.some((v: any) => v.id === variant_id));
-    const productTitle = product?.title || variant.title || "Product";
-
-    // Add new item to cart
-    await cartModuleService.addLineItems(targetCartId, [
-      {
-        variant_id,
-        quantity,
-        title: productTitle,
-        unit_price: price.amount,
-      },
-    ]);
 
     // Fetch updated cart with details
     const updatedCart = await cartModuleService.retrieveCart(targetCartId, {
