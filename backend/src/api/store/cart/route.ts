@@ -55,9 +55,20 @@ export async function GET(
 
     // If no cart found, create a new one
     if (!cart) {
+      const defaultCurrency = "ghs";
+      const resolvedRegionId = await resolveRegionId(query, undefined, defaultCurrency);
+
+      if (!resolvedRegionId) {
+        return res.status(500).json({
+          error: "Region not configured",
+          message: "No region found. Please configure at least one region in the admin dashboard.",
+        });
+      }
+
       cart = await cartModuleService.createCarts({
         ...(customerId && { customer_id: customerId }),
-        currency_code: "ghs", // Default currency
+        currency_code: defaultCurrency,
+        region_id: resolvedRegionId,
       });
 
       // Store cart_id in session
@@ -116,11 +127,20 @@ export async function POST(
 
     const { currency_code = "ghs", region_id } = req.body as { currency_code?: string; region_id?: string };
 
+    const resolvedRegionId = await resolveRegionId(query, region_id, currency_code);
+
+    if (!resolvedRegionId) {
+      return res.status(400).json({
+        error: "Region not found",
+        message: "Unable to resolve a region for the provided currency. Please provide a valid region_id.",
+      });
+    }
+
     // Create new cart
     const cart = await cartModuleService.createCarts({
       ...(customerId && { customer_id: customerId }),
       currency_code,
-      ...(region_id && { region_id }),
+      region_id: resolvedRegionId,
     });
 
     // Store cart_id in session
@@ -308,4 +328,36 @@ export async function DELETE(
   }
 }
 
+
+async function resolveRegionId(
+  query: any,
+  providedRegionId?: string,
+  currencyCode?: string
+): Promise<string | null> {
+  try {
+    if (providedRegionId) {
+      return providedRegionId;
+    }
+
+    const filters: Record<string, any> = {};
+    if (currencyCode) {
+      filters.currency_code = currencyCode;
+    }
+
+    const { data: regions } = await query.graph({
+      entity: "region",
+      fields: ["id", "currency_code"],
+      ...(Object.keys(filters).length ? { filters } : {}),
+      pagination: { take: 1 },
+    });
+
+    if (regions && regions.length > 0) {
+      return regions[0].id;
+    }
+  } catch (error) {
+    console.error("Error resolving region:", error);
+  }
+
+  return null;
+}
 
