@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
-import { updateLineItemInCartWorkflow, removeItemFromCartWorkflow } from "@medusajs/medusa/core-flows";
+import { updateLineItemInCartWorkflow } from "@medusajs/medusa/core-flows";
 import { ICartModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
 import { formatCartResponse, getCartId } from "../../helpers";
@@ -161,13 +161,8 @@ export async function DELETE(
       });
     }
 
-    // Remove item from cart using workflow
-    await removeItemFromCartWorkflow(req.scope).run({
-      input: {
-        cart_id: targetCartId,
-        item_ids: [id],
-      },
-    });
+    // Remove item from cart
+    await cartModuleService.deleteLineItems([id]);
 
     // Fetch updated cart with details
     const updatedCart = await cartModuleService.retrieveCart(targetCartId, {
