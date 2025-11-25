@@ -66,7 +66,7 @@ export async function POST(
     let cart;
     try {
       cart = await cartModuleService.retrieveCart(targetCartId, {
-        relations: ["items", "items.variant", "items.product", "customer", "region"],
+        relations: ["items", "items.variant", "items.product", "region"],
       });
     } catch (error) {
       return res.status(404).json({
@@ -116,7 +116,7 @@ export async function POST(
 
     // Retrieve updated cart with all relations
     const completedCart = await cartModuleService.retrieveCart(targetCartId, {
-      relations: ["items", "items.variant", "items.product", "customer", "region"],
+      relations: ["items", "items.variant", "items.product", "region"],
     });
 
     // Create order from cart

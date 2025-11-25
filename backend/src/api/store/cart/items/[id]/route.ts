@@ -83,7 +83,7 @@ export async function PATCH(
 
     // Fetch updated cart with details
     const updatedCart = await cartModuleService.retrieveCart(targetCartId, {
-      relations: ["items", "items.variant", "items.product", "customer", "region"],
+      relations: ["items", "items.variant", "items.product", "region"],
     });
 
     const formattedCart = await formatCartResponse(updatedCart, query);
@@ -162,7 +162,7 @@ export async function DELETE(
 
     // Fetch updated cart with details
     const updatedCart = await cartModuleService.retrieveCart(targetCartId, {
-      relations: ["items", "items.variant", "items.product", "customer", "region"],
+      relations: ["items", "items.variant", "items.product", "region"],
     });
 
     const formattedCart = await formatCartResponse(updatedCart, query);

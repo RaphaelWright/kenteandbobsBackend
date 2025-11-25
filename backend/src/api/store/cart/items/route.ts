@@ -71,7 +71,7 @@ export async function POST(
 
       // Fetch updated cart with details
       const refreshedCart = await cartModuleService.retrieveCart(targetCartId, {
-        relations: ["items", "items.variant", "items.product", "customer", "region"],
+        relations: ["items", "items.variant", "items.product", "region"],
       });
 
       const formattedCart = await formatCartResponse(refreshedCart, query);
@@ -144,7 +144,7 @@ export async function POST(
 
     // Fetch updated cart with details
     const updatedCart = await cartModuleService.retrieveCart(targetCartId, {
-      relations: ["items", "items.variant", "items.product", "customer", "region"],
+      relations: ["items", "items.variant", "items.product", "region"],
     });
 
     const formattedCart = await formatCartResponse(updatedCart, query);
