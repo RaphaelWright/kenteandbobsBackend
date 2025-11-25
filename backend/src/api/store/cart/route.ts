@@ -45,7 +45,7 @@ export async function GET(
       // Try to retrieve existing cart
       try {
         cart = await cartModuleService.retrieveCart(cartId, {
-          relations: ["items", "items.variant", "items.product", "region", "region.currency"]
+          relations: ["items", "items.variant", "items.product"]
         });
       } catch (error) {
         // Cart not found, will create new one
@@ -239,7 +239,7 @@ export async function PATCH(
 
     // Fetch updated cart with relations
     const updatedCart = await cartModuleService.retrieveCart(cartId, {
-      relations: ["items", "items.variant", "items.product", "region", "region.currency"],
+      relations: ["items", "items.variant", "items.product"],
     });
 
     // Format cart response
