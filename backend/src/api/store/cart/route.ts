@@ -34,19 +34,6 @@ export async function GET(
           customerId = customers[0].id;
         }
       }
-    } else if (customerId && !cart.customer_id) {
-      // Cart exists but not linked to this customer yet
-      await cartModuleService.updateCarts([
-        {
-          id: cart.id,
-          customer_id: customerId,
-          email: cart.email || customerEmail,
-        },
-      ]);
-
-      cart = await cartModuleService.retrieveCart(cart.id, {
-        relations: ["items", "items.variant", "items.product"],
-      });
     }
 
     // Try to get cart_id from query params or session
@@ -60,22 +47,25 @@ export async function GET(
         cart = await cartModuleService.retrieveCart(cartId, {
           relations: ["items", "items.variant", "items.product"]
         });
+
+        // If cart exists and customer is authenticated but cart not linked, link it
+        if (cart && customerId && !cart.customer_id) {
+          await cartModuleService.updateCarts([
+            {
+              id: cart.id,
+              customer_id: customerId,
+              email: cart.email || customerEmail,
+            },
+          ]);
+
+          cart = await cartModuleService.retrieveCart(cart.id, {
+            relations: ["items", "items.variant", "items.product"],
+          });
+        }
       } catch (error) {
         // Cart not found, will create new one
         cart = null;
       }
-    } else if (customerId && !cart.customer_id) {
-      await cartModuleService.updateCarts([
-        {
-          id: cart.id,
-          customer_id: customerId,
-          email: cart.email || customerEmail,
-        },
-      ]);
-
-      cart = await cartModuleService.retrieveCart(cart.id, {
-        relations: ["items", "items.variant", "items.product"],
-      });
     }
 
     // If no cart found, create a new one
