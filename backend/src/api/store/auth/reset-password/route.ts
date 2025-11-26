@@ -157,21 +157,27 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
 
     // Find auth identity by email
-    const authIdentities = await authModuleService.listAuthIdentities({
-      entity_id: email,
+    // Note: Medusa's auth identity uses entity_id to store the email
+    // We need to list all and filter manually since listAuthIdentities doesn't support entity_id filter
+    const allAuthIdentities = await authModuleService.listAuthIdentities({
+      provider: "emailpass",
     });
 
-    if (!authIdentities || authIdentities.length === 0) {
+    const authIdentity = allAuthIdentities.find(
+      (identity: any) => identity.entity_id === email
+    );
+
+    if (!authIdentity) {
       return res.status(400).json({
         error: "Bad Request",
         message: "Invalid or expired reset token",
       });
     }
 
-    const authIdentity = authIdentities[0];
-
     // Update password
-    await authModuleService.updateAuthIdentities(authIdentity.id, {
+    // The updateAuthIdentities expects the ID to be part of the data object
+    await authModuleService.updateAuthIdentities({
+      id: authIdentity.id,
       provider_metadata: {
         password: new_password,
       },
