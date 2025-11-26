@@ -45,7 +45,7 @@ export async function GET(
       // Try to retrieve existing cart
       try {
         cart = await cartModuleService.retrieveCart(cartId, {
-          relations: ["items", "items.variant", "items.product"]
+          relations: ["items"]
         });
 
         // If cart exists and customer is authenticated but cart not linked, link it
@@ -59,7 +59,7 @@ export async function GET(
           ]);
 
           cart = await cartModuleService.retrieveCart(cart.id, {
-            relations: ["items", "items.variant", "items.product"],
+            relations: ["items"],
           });
         }
       } catch (error) {
@@ -272,9 +272,11 @@ export async function PATCH(
       ]);
     }
 
-    // Fetch updated cart with relations
+    // Fetch updated cart with basic relations only
+    // Note: We only need items relation here. Product details are fetched
+    // separately by formatCartResponse using Query Graph API to avoid MikroORM issues
     const updatedCart = await cartModuleService.retrieveCart(cartId, {
-      relations: ["items", "items.variant", "items.product"],
+      relations: ["items"],
     });
 
     // Format cart response
