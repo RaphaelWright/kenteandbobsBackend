@@ -2,11 +2,31 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
 import { ICartModuleService, IOrderModuleService, ICustomerModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
 import { formatCartResponse, getCartId, getCustomerFromAuth } from "../helpers";
+import {
+  DeliveryData,
+  PaymentData,
+  validateDeliveryData,
+  validatePaymentData,
+  convertDeliveryToAddress,
+} from "../../../../utils/checkout-validation";
+
+interface CheckoutRequest {
+  cart_id?: string;
+  delivery?: DeliveryData;
+  payment?: PaymentData;
+  // Legacy support
+  shipping_address?: any;
+  billing_address?: any;
+  shipping_method_id?: string;
+  payment_provider_id?: string;
+}
 
 /**
  * POST /store/cart/complete
  * Complete cart (checkout) - requires authentication
  * Converts cart to order
+ * 
+ * Accepts frontend structure with delivery and payment data
  */
 export async function POST(
   req: MedusaRequest,
@@ -28,19 +48,39 @@ export async function POST(
     const customerModuleService: ICustomerModuleService = req.scope.resolve(Modules.CUSTOMER);
     const query = req.scope.resolve("query");
 
+    const requestBody = req.body as CheckoutRequest;
     const {
       cart_id,
-      shipping_address,
-      billing_address,
+      delivery,
+      payment,
+      // Legacy support
+      shipping_address: legacyShippingAddress,
+      billing_address: legacyBillingAddress,
       shipping_method_id,
       payment_provider_id = "stripe",
-    } = req.body as {
-      cart_id?: string;
-      shipping_address?: any;
-      billing_address?: any;
-      shipping_method_id?: string;
-      payment_provider_id?: string;
-    };
+    } = requestBody;
+
+    // Validate delivery data if provided in new format
+    if (delivery) {
+      const deliveryValidation = validateDeliveryData(delivery);
+      if (!deliveryValidation.valid) {
+        return res.status(400).json({
+          error: "Invalid delivery data",
+          message: deliveryValidation.error,
+        });
+      }
+    }
+
+    // Validate payment data if provided in new format
+    if (payment) {
+      const paymentValidation = validatePaymentData(payment);
+      if (!paymentValidation.valid) {
+        return res.status(400).json({
+          error: "Invalid payment data",
+          message: paymentValidation.error,
+        });
+      }
+    }
 
     // Get cart_id from request body, query params, or session
     const targetCartId = cart_id || getCartId(req);
@@ -94,15 +134,46 @@ export async function POST(
       ]);
     }
 
+    // Convert delivery data to address format
+    let shippingAddress;
+    let billingAddress;
+
+    if (delivery) {
+      // Use new frontend format
+      shippingAddress = convertDeliveryToAddress(delivery);
+      // For now, use same address for billing, or use customer email
+      billingAddress = shippingAddress;
+      
+      // Update email if provided in delivery data
+      if (delivery.email && delivery.email !== customer.email) {
+        await cartModuleService.updateCarts([
+          {
+            id: targetCartId,
+            email: delivery.email,
+          },
+        ]);
+      }
+    } else {
+      // Use legacy format
+      shippingAddress = legacyShippingAddress;
+      billingAddress = legacyBillingAddress;
+    }
+
     // Update cart with shipping and billing addresses if provided
     const updateData: any = {};
     
-    if (shipping_address) {
-      updateData.shipping_address = shipping_address;
+    if (shippingAddress) {
+      updateData.shipping_address = shippingAddress;
     }
 
-    if (billing_address) {
-      updateData.billing_address = billing_address;
+    if (billingAddress) {
+      updateData.billing_address = billingAddress;
+    }
+
+    // Handle shipping for pickup vs delivery
+    if (delivery?.deliveryOption === "pickup") {
+      // For pickup, shipping should be free or use a specific method
+      updateData.shipping_total = 0;
     }
 
     if (Object.keys(updateData).length > 0) {
@@ -135,8 +206,24 @@ export async function POST(
       // Prepare order data
       // Note: Medusa's CreateOrderDTO has specific required fields
       // We'll use a type assertion to work with the order service
-      const finalShippingAddress = completedCart.shipping_address || shipping_address;
-      const finalBillingAddress = completedCart.billing_address || billing_address;
+      const finalShippingAddress = completedCart.shipping_address || shippingAddress;
+      const finalBillingAddress = completedCart.billing_address || billingAddress;
+
+      // Prepare order metadata
+      const orderMetadata: any = {};
+      
+      if (delivery) {
+        orderMetadata.delivery_option = delivery.deliveryOption;
+        if (delivery.additionalPhone) {
+          orderMetadata.additional_phone = delivery.additionalPhone;
+        }
+      }
+      
+      if (payment) {
+        orderMetadata.payment_method = payment.paymentMethod;
+        // Note: Never store actual card numbers or CVV in metadata
+        // Only store payment method type for reference
+      }
 
       // Create order with required structure
       // Using type assertion since CreateOrderDTO structure may vary
@@ -146,9 +233,10 @@ export async function POST(
         region_id: completedCart.region_id,
         items: orderItems,
         ...(customer.id && { customer_id: customer.id }),
-        ...(customer.email && { email: customer.email }),
+        ...(completedCart.email || customer.email) && { email: completedCart.email || customer.email },
         ...(finalShippingAddress && { shipping_address: finalShippingAddress }),
         ...(finalBillingAddress && { billing_address: finalBillingAddress }),
+        ...(Object.keys(orderMetadata).length > 0 && { metadata: orderMetadata }),
       } as any);
 
       // Handle both array and single order return types
@@ -183,6 +271,9 @@ export async function POST(
         })) || [],
         shipping_address: order.shipping_address,
         billing_address: order.billing_address,
+        metadata: order.metadata || {},
+        delivery_option: delivery?.deliveryOption,
+        payment_method: payment?.paymentMethod,
         created_at: order.created_at,
         updated_at: order.updated_at,
       };

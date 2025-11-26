@@ -2,15 +2,33 @@
 
 This document describes all checkout-related endpoints for completing purchases in the Kente & Bobs e-commerce platform.
 
+> **✨ NEW: Frontend Integration**  
+> For the latest frontend-compatible checkout flow with delivery/payment structures, see **[CHECKOUT_FRONTEND_INTEGRATION.md](./CHECKOUT_FRONTEND_INTEGRATION.md)** and **[CHECKOUT_QUICK_REFERENCE.md](./CHECKOUT_QUICK_REFERENCE.md)**.  
+> This document covers both the **new frontend format** and **legacy format**.
+
 ## Overview
 
 The checkout process involves several steps:
 1. **Validate Cart** - Ensure cart has items and is ready for checkout
-2. **Add Addresses** - Add shipping and billing addresses
-3. **Select Shipping Method** - Choose delivery method
+2. **Add Addresses** - Add shipping and billing addresses (or use new delivery format)
+3. **Select Shipping Method** - Choose delivery method (pickup or delivery)
 4. **Complete Order** - Finalize purchase and create order
 
 All checkout endpoints require **authentication** except for shipping method retrieval.
+
+### Two Supported Formats
+
+The `/store/cart/complete` endpoint now supports **two formats**:
+
+1. **New Frontend Format (Recommended):**
+   - Delivery data: `{ deliveryOption: "pickup" | "delivery", ... }`
+   - Payment data: `{ paymentMethod: "card" | "mobile_money", ... }`
+   - Ghana phone validation: `+233XXXXXXXXX` or `0XXXXXXXXX`
+   - See [CHECKOUT_FRONTEND_INTEGRATION.md](./CHECKOUT_FRONTEND_INTEGRATION.md)
+
+2. **Legacy Format (Still Supported):**
+   - Traditional `shipping_address` and `billing_address`
+   - Documented below in this file
 
 ---
 
@@ -200,7 +218,44 @@ Before starting checkout, ensure the cart is valid and has items.
 
 **Description:** Complete the checkout process and create an order. This is the final step that converts the cart into a confirmed order.
 
-**Request Body:**
+**Request Body (New Frontend Format - Recommended):**
+
+```json
+{
+  "delivery": {
+    "deliveryOption": "delivery",
+    "country": "Ghana",
+    "streetAddress": "123 Independence Avenue",
+    "apartment": "Apt 4B",
+    "city": "Accra",
+    "region": "Greater Accra",
+    "phone": "+233244123456",
+    "additionalPhone": "+233501234567",
+    "email": "customer@example.com",
+    "postalCode": "GA-123-4567"
+  },
+  "payment": {
+    "paymentMethod": "card"
+  }
+}
+```
+
+**For Pickup:**
+
+```json
+{
+  "delivery": {
+    "deliveryOption": "pickup",
+    "phone": "+233244123456"
+  },
+  "payment": {
+    "paymentMethod": "mobile_money",
+    "mobileNumber": "+233244123456"
+  }
+}
+```
+
+**Request Body (Legacy Format - Still Supported):**
 
 ```json
 {
@@ -230,12 +285,32 @@ Before starting checkout, ensure the cart is valid and has items.
 }
 ```
 
-**Fields:**
+**Fields (New Format):**
+- `delivery.deliveryOption` (required): "pickup" or "delivery"
+- `delivery.phone` (required): Ghana phone number (+233XXXXXXXXX or 0XXXXXXXXX)
+- `delivery.country` (required for delivery): Country name
+- `delivery.streetAddress` (required for delivery): Street address
+- `delivery.city` (required for delivery): City name
+- `delivery.region` (required for delivery): Region/province
+- `delivery.additionalPhone` (required for delivery): Additional contact number
+- `delivery.email` (required for delivery): Customer email
+- `delivery.apartment` (optional): Apartment/suite number
+- `delivery.postalCode` (optional): Postal code
+- `payment.paymentMethod` (required): "card" or "mobile_money"
+- `payment.mobileNumber` (for mobile_money): Mobile money number
+
+**Fields (Legacy Format):**
 - `cart_id` (optional): Cart ID. Retrieved from session if not provided.
 - `shipping_address` (optional if already set on cart): Shipping address
 - `billing_address` (optional if already set on cart): Billing address
 - `shipping_method_id` (optional): Selected shipping method ID
 - `payment_provider_id` (optional, default: "stripe"): Payment provider
+
+**Validation Rules (New Format):**
+- Phone numbers must match: `/^(\+233|0)[2-5][0-9]{8}$/`
+- Email must be valid format
+- For delivery: all address fields are required
+- For pickup: only phone number required
 
 **Response:** `200 OK`
 
@@ -281,11 +356,25 @@ Before starting checkout, ensure the cart is valid and has items.
       "city": "Accra",
       "country_code": "GH"
     },
+    "metadata": {
+      "delivery_option": "delivery",
+      "additional_phone": "+233501234567",
+      "payment_method": "card"
+    },
+    "delivery_option": "delivery",
+    "payment_method": "card",
     "created_at": "2024-01-01T00:00:00Z",
     "updated_at": "2024-01-01T00:00:00Z"
   }
 }
 ```
+
+**New Response Fields (when using new format):**
+- `order.delivery_option`: "pickup" or "delivery"
+- `order.payment_method`: "card" or "mobile_money"
+- `order.metadata.delivery_option`: Same as delivery_option
+- `order.metadata.additional_phone`: Additional contact number (for delivery)
+- `order.metadata.payment_method`: Payment method type
 
 **What Happens After Completion:**
 1. Order is created in the system
@@ -309,6 +398,30 @@ Before starting checkout, ensure the cart is valid and has items.
 {
   "error": "Bad Request",
   "message": "Cart is empty. Add items before checkout"
+}
+```
+
+**400 Bad Request** - Invalid delivery data (new format)
+```json
+{
+  "error": "Invalid delivery data",
+  "message": "Invalid Ghana phone number. Format: +233XXXXXXXXX or 0XXXXXXXXX"
+}
+```
+
+**400 Bad Request** - Invalid payment data (new format)
+```json
+{
+  "error": "Invalid payment data",
+  "message": "Payment method is required"
+}
+```
+
+**400 Bad Request** - Missing required fields (new format)
+```json
+{
+  "error": "Invalid delivery data",
+  "message": "Missing required field for delivery: streetAddress"
 }
 ```
 

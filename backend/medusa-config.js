@@ -13,8 +13,8 @@ import {
   SENDGRID_FROM_EMAIL,
   SHOULD_DISABLE_ADMIN,
   STORE_CORS,
-  STRIPE_API_KEY,
-  STRIPE_WEBHOOK_SECRET,
+  PAYSTACK_SECRET_KEY,
+  PAYSTACK_PUBLIC_KEY,
   WORKER_MODE,
   MINIO_ENDPOINT,
   MINIO_ACCESS_KEY,
@@ -68,7 +68,7 @@ const medusaConfig = {
       resolve: './src/modules/wishlist',
       key: 'wishlistModuleService',
     },
-    {
+     {
       key: Modules.AUTH,
       resolve: '@medusajs/auth',
       options: {
@@ -169,17 +169,17 @@ const medusaConfig = {
         ]
       }
     }] : []),
-    ...(STRIPE_API_KEY && STRIPE_WEBHOOK_SECRET ? [{
+    ...(PAYSTACK_SECRET_KEY ? [{
       key: Modules.PAYMENT,
       resolve: '@medusajs/payment',
       options: {
         providers: [
           {
-            resolve: '@medusajs/payment-stripe',
-            id: 'stripe',
+            resolve: 'medusa-payment-paystack',
+            id: 'paystack',
             options: {
-              apiKey: STRIPE_API_KEY,
-              webhookSecret: STRIPE_WEBHOOK_SECRET,
+              secret_key: PAYSTACK_SECRET_KEY,
+              public_key: PAYSTACK_PUBLIC_KEY,
             },
           },
         ],

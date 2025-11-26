@@ -87,10 +87,10 @@ export const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 export const SENDGRID_FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || process.env.SENDGRID_FROM;
 
 /**
- * (optional) Stripe API key and webhook secret
+ * (required) Paystack API keys - Primary payment provider
  */
-export const STRIPE_API_KEY = process.env.STRIPE_API_KEY;
-export const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+export const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+export const PAYSTACK_PUBLIC_KEY = process.env.PAYSTACK_PUBLIC_KEY;
 
 /**
  * (optional) Meilisearch configuration

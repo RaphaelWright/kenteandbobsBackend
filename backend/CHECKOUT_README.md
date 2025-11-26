@@ -9,7 +9,8 @@
 | Document | Description | Best For |
 |----------|-------------|----------|
 | **[CHECKOUT_ENDPOINTS.md](./CHECKOUT_ENDPOINTS.md)** | Complete API documentation | Backend devs, API reference |
-| **[CHECKOUT_QUICK_START.md](./CHECKOUT_QUICK_START.md)** | 5-minute implementation guide | Frontend devs, quick start |
+| **[CHECKOUT_FRONTEND_INTEGRATION.md](./CHECKOUT_FRONTEND_INTEGRATION.md)** | Frontend integration guide | Frontend devs, **START HERE** |
+| **[CHECKOUT_QUICK_START.md](./CHECKOUT_QUICK_START.md)** | 5-minute implementation guide | Quick prototyping |
 | **[CHECKOUT_SUMMARY.md](./CHECKOUT_SUMMARY.md)** | High-level overview | Project managers, overview |
 
 ---
