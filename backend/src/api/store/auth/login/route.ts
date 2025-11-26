@@ -38,7 +38,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
     // Set auth session
     req.session.auth_context = {
-      actor_id: authIdentity.id,
+      actor_id: authIdentity.entity_id, // This is the email
       actor_type: "customer",
       auth_identity_id: authIdentity.id,
       app_metadata: {
