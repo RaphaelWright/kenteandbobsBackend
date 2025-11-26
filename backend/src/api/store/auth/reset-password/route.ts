@@ -157,14 +157,15 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
 
     // Find auth identity by email
-    // Note: Medusa's auth identity uses entity_id to store the email
-    // We need to list all and filter manually since listAuthIdentities doesn't support entity_id filter
-    const allAuthIdentities = await authModuleService.listAuthIdentities({
-      provider: "emailpass",
-    });
+    // Note: Medusa's listAuthIdentities has limited filter support
+    // We need to list all and filter manually
+    const allAuthIdentities = await authModuleService.listAuthIdentities();
 
+    // Filter for emailpass provider and matching email
     const authIdentity = allAuthIdentities.find(
-      (identity: any) => identity.entity_id === email
+      (identity: any) => 
+        identity.provider === "emailpass" && 
+        identity.entity_id === email
     );
 
     if (!authIdentity) {
