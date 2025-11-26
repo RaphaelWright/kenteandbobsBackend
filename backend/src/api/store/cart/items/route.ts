@@ -1,6 +1,6 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
 import { addToCartWorkflow, updateLineItemInCartWorkflow } from "@medusajs/medusa/core-flows";
-import { ICartModuleService } from "@medusajs/framework/types";
+import { ICartModuleService, ICustomerModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
 import { formatCartResponse, getCartId } from "../helpers";
 
@@ -15,6 +15,7 @@ export async function POST(
 ) {
   try {
     const cartModuleService: ICartModuleService = req.scope.resolve(Modules.CART);
+    const customerModuleService: ICustomerModuleService = req.scope.resolve(Modules.CUSTOMER);
     const query = req.scope.resolve("query");
 
     const { variant_id, quantity = 1, cart_id } = req.body as { variant_id?: string; quantity?: number; cart_id?: string };
@@ -44,6 +45,28 @@ export async function POST(
       });
     }
 
+    // Check if user is authenticated and get customer_id
+    const authContext = req.session?.auth_context;
+    let customerId: string | undefined;
+
+    if (authContext?.auth_identity_id) {
+      const customerEmail = authContext.actor_id;
+      
+      // Try to find customer by email
+      if (customerEmail) {
+        try {
+          const customers = await customerModuleService.listCustomers({
+            email: customerEmail
+          });
+          if (customers && customers.length > 0) {
+            customerId = customers[0].id;
+          }
+        } catch (error) {
+          console.error("Error fetching customer:", error);
+        }
+      }
+    }
+
     // Verify cart exists using simpler retrieval (avoid MikroORM filter issues)
     let cart;
     try {
@@ -58,6 +81,13 @@ export async function POST(
           filters: { id: targetCartId },
         });
         cart.items = cartWithItems?.[0]?.items || [];
+      }
+
+      // If user is authenticated and cart doesn't have customer_id, associate it
+      if (customerId && !cart.customer_id) {
+        cart = await cartModuleService.updateCarts(targetCartId, {
+          customer_id: customerId,
+        });
       }
     } catch (error) {
       console.error("Error retrieving cart:", error);
