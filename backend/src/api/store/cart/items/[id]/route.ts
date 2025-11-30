@@ -55,9 +55,18 @@ export async function PATCH(
     // Verify cart exists and item belongs to it
     let cart;
     try {
-      cart = await cartModuleService.retrieveCart(targetCartId, {
-        relations: ["items"],
-      });
+      // First try with minimal relations to avoid MikroORM issues
+      cart = await cartModuleService.retrieveCart(targetCartId);
+      
+      // Manually fetch items if needed using query
+      if (!cart.items) {
+        const { data: cartWithItems } = await query.graph({
+          entity: "cart",
+          fields: ["id", "items.*"],
+          filters: { id: targetCartId },
+        });
+        cart.items = cartWithItems?.[0]?.items || [];
+      }
     } catch (error) {
       return res.status(404).json({
         error: "Cart not found",
@@ -85,10 +94,17 @@ export async function PATCH(
       },
     });
 
-    // Fetch updated cart with details
-    const updatedCart = await cartModuleService.retrieveCart(targetCartId, {
-      relations: ["items", "items.variant", "items.product"],
+    // Fetch updated cart using query graph to avoid MikroORM issues
+    const { data: carts } = await query.graph({
+      entity: "cart",
+      fields: ["id", "customer_id", "email", "currency_code", "region_id", "items.*", "items.variant.*", "items.product.*"],
+      filters: { id: targetCartId },
     });
+
+    const updatedCart = carts?.[0];
+    if (!updatedCart) {
+      throw new Error("Cart not found after update");
+    }
 
     const formattedCart = await formatCartResponse(updatedCart, query);
 
@@ -142,9 +158,18 @@ export async function DELETE(
     // Verify cart exists and item belongs to it
     let cart;
     try {
-      cart = await cartModuleService.retrieveCart(targetCartId, {
-        relations: ["items"],
-      });
+      // First try with minimal relations to avoid MikroORM issues
+      cart = await cartModuleService.retrieveCart(targetCartId);
+      
+      // Manually fetch items if needed using query
+      if (!cart.items) {
+        const { data: cartWithItems } = await query.graph({
+          entity: "cart",
+          fields: ["id", "items.*"],
+          filters: { id: targetCartId },
+        });
+        cart.items = cartWithItems?.[0]?.items || [];
+      }
     } catch (error) {
       return res.status(404).json({
         error: "Cart not found",
@@ -164,10 +189,17 @@ export async function DELETE(
     // Remove item from cart
     await cartModuleService.deleteLineItems([id]);
 
-    // Fetch updated cart with details
-    const updatedCart = await cartModuleService.retrieveCart(targetCartId, {
-      relations: ["items", "items.variant", "items.product"],
+    // Fetch updated cart using query graph to avoid MikroORM issues
+    const { data: carts } = await query.graph({
+      entity: "cart",
+      fields: ["id", "customer_id", "email", "currency_code", "region_id", "items.*", "items.variant.*", "items.product.*"],
+      filters: { id: targetCartId },
     });
+
+    const updatedCart = carts?.[0];
+    if (!updatedCart) {
+      throw new Error("Cart not found after deletion");
+    }
 
     const formattedCart = await formatCartResponse(updatedCart, query);
 
