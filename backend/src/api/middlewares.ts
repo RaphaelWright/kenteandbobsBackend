@@ -1,3 +1,4 @@
+import { authenticate as medusaAuthenticate } from "@medusajs/framework/http";
 import { defineMiddlewares } from "@medusajs/medusa";
 
 /**
@@ -35,6 +36,10 @@ export const optionalAuthenticate = async (req, res, next) => {
 
 export default defineMiddlewares({
   routes: [
+    {
+      matcher: "/store/customers/me",
+      middlewares: [optionalAuthenticate]  // Use optional to not block, let route handle auth
+    },
     {
       matcher: "/store/protected/*",
       middlewares: [authenticate]
