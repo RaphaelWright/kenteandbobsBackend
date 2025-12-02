@@ -40,6 +40,10 @@ export default defineMiddlewares({
       middlewares: [authenticate]
     },
     {
+      matcher: "/store/customers/me",
+      middlewares: [authenticate]
+    },
+    {
       matcher: "/store/protected/*",
       middlewares: [authenticate]
     },

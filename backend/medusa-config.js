@@ -47,7 +47,17 @@ const medusaConfig = {
       cookieSecret: COOKIE_SECRET
     },
     sessionOptions: {
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds (604800000 ms)
+      name: 'connect.sid',
+      resave: false,
+      rolling: false,
+      saveUninitialized: false,
+      secret: COOKIE_SECRET,
+      cookie: {
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds (604800000 ms)
+        httpOnly: true,
+        sameSite: 'lax', // Changed from 'strict' for better compatibility
+        secure: process.env.NODE_ENV === 'production' // Only use secure in production
+      }
     },
     build: {
       rollupOptions: {
