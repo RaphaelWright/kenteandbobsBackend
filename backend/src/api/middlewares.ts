@@ -36,14 +36,6 @@ export const optionalAuthenticate = async (req, res, next) => {
 export default defineMiddlewares({
   routes: [
     {
-      matcher: "/store/auth/me",
-      middlewares: [authenticate]
-    },
-    {
-      matcher: "/store/customers/me",
-      middlewares: [authenticate]
-    },
-    {
       matcher: "/store/protected/*",
       middlewares: [authenticate]
     },

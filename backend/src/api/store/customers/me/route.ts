@@ -8,13 +8,28 @@ import { Modules } from "@medusajs/framework/utils";
  */
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   try {
+    console.log("=== /store/customers/me called ===");
+    console.log("Session exists:", !!req.session);
+    console.log("Session data:", req.session ? {
+      hasAuthContext: !!req.session.auth_context,
+      authIdentityId: req.session.auth_context?.auth_identity_id,
+      actorId: req.session.auth_context?.actor_id,
+      actorType: req.session.auth_context?.actor_type
+    } : 'NO SESSION');
+    
     const authContext = req.session?.auth_context;
 
     if (!authContext || !authContext.auth_identity_id) {
+      console.log("❌ Authentication failed - no auth context");
       return res.status(401).json({
         error: "Not authenticated"
       });
     }
+    
+    console.log("✅ Auth context found:", {
+      auth_identity_id: authContext.auth_identity_id,
+      actor_id: authContext.actor_id
+    });
 
     const authModuleService: IAuthModuleService = req.scope.resolve(Modules.AUTH);
     const customerModuleService: ICustomerModuleService = req.scope.resolve(Modules.CUSTOMER);
