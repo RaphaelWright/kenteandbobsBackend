@@ -120,7 +120,19 @@ export async function POST(
         // Fetch updated cart using query graph to avoid MikroORM issues
         const { data: carts } = await query.graph({
           entity: "cart",
-          fields: ["id", "customer_id", "email", "currency_code", "region_id", "items.*"],
+          fields: [
+            "id", 
+            "customer_id", 
+            "email", 
+            "currency_code", 
+            "region_id", 
+            "items.*",
+            "subtotal",
+            "tax_total",
+            "shipping_total",
+            "discount_total",
+            "total"
+          ],
           filters: { id: targetCartId },
         });
 
@@ -158,7 +170,19 @@ export async function POST(
       // Fetch updated cart using query graph to avoid MikroORM issues
       const { data: carts } = await query.graph({
         entity: "cart",
-        fields: ["id", "customer_id", "email", "currency_code", "region_id", "items.*"],
+        fields: [
+          "id", 
+          "customer_id", 
+          "email", 
+          "currency_code", 
+          "region_id", 
+          "items.*",
+          "subtotal",
+          "tax_total",
+          "shipping_total",
+          "discount_total",
+          "total"
+        ],
         filters: { id: targetCartId },
       });
 
