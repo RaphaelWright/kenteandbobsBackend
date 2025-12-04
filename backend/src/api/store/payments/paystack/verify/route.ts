@@ -1,0 +1,274 @@
+import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
+import { ICartModuleService, ICustomerModuleService, IOrderModuleService } from "@medusajs/framework/types";
+import { Modules } from "@medusajs/framework/utils";
+import { getCartId, getCustomerFromAuth } from "../../../cart/helpers";
+import { PAYSTACK_SECRET_KEY } from "../../../../../lib/constants";
+
+/**
+ * GET /store/payments/paystack/verify?reference=xxx
+ * Verify Paystack payment and create order
+ * Requires authentication
+ */
+export async function GET(
+  req: MedusaRequest,
+  res: MedusaResponse
+) {
+  try {
+    // Check if Paystack is configured
+    if (!PAYSTACK_SECRET_KEY) {
+      return res.status(503).json({
+        error: "Payment system not configured",
+        message: "Paystack is not configured. Please contact support.",
+      });
+    }
+
+    // Check authentication
+    const authContext = req.session?.auth_context;
+    if (!authContext || !authContext.auth_identity_id) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "You must be logged in to verify payment",
+      });
+    }
+
+    // Get payment reference from query params
+    const reference = req.query.reference as string;
+    if (!reference) {
+      return res.status(400).json({
+        error: "Missing reference",
+        message: "Payment reference is required",
+      });
+    }
+
+    const cartModuleService: ICartModuleService = req.scope.resolve(Modules.CART);
+    const customerModuleService: ICustomerModuleService = req.scope.resolve(Modules.CUSTOMER);
+    const orderModuleService: IOrderModuleService = req.scope.resolve(Modules.ORDER);
+    const query = req.scope.resolve("query");
+
+    // Get customer
+    const customer = await getCustomerFromAuth(authContext, customerModuleService);
+    if (!customer) {
+      return res.status(400).json({
+        error: "Customer not found",
+        message: "Unable to find customer profile",
+      });
+    }
+
+    // Verify payment with Paystack
+    const paystackResponse = await fetch(
+      `https://api.paystack.co/transaction/verify/${reference}`,
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${PAYSTACK_SECRET_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const paystackResult = await paystackResponse.json();
+
+    if (!paystackResponse.ok || !paystackResult.status) {
+      console.error("Paystack verification error:", paystackResult);
+      return res.status(400).json({
+        error: "Payment verification failed",
+        message: paystackResult.message || "Failed to verify payment with Paystack",
+        details: paystackResult,
+      });
+    }
+
+    const paymentData = paystackResult.data;
+
+    // Check if payment was successful
+    if (paymentData.status !== "success") {
+      return res.status(400).json({
+        error: "Payment not successful",
+        message: `Payment status: ${paymentData.status}`,
+        data: {
+          status: paymentData.status,
+          reference: paymentData.reference,
+          gateway_response: paymentData.gateway_response,
+        },
+      });
+    }
+
+    // Get cart from metadata or session
+    const cartId = paymentData.metadata?.cart_id || getCartId(req);
+    if (!cartId) {
+      return res.status(400).json({
+        error: "No cart found",
+        message: "Unable to find cart associated with payment",
+      });
+    }
+
+    // Retrieve cart
+    let cart;
+    try {
+      cart = await cartModuleService.retrieveCart(cartId, {
+        relations: ["items"],
+      });
+    } catch (error) {
+      return res.status(404).json({
+        error: "Cart not found",
+        message: "The cart associated with this payment no longer exists",
+      });
+    }
+
+    // Validate cart has items
+    if (!cart.items || cart.items.length === 0) {
+      return res.status(400).json({
+        error: "Empty cart",
+        message: "Cart is empty",
+      });
+    }
+
+    // Calculate cart total for verification
+    const cartTotal = cart.items.reduce((total: number, item: any) => {
+      return total + (item.unit_price * item.quantity);
+    }, 0);
+
+    // Verify amount matches
+    if (paymentData.amount !== cartTotal) {
+      console.error("Amount mismatch:", {
+        paystack_amount: paymentData.amount,
+        cart_total: cartTotal,
+      });
+      return res.status(400).json({
+        error: "Amount mismatch",
+        message: "Payment amount does not match cart total",
+        details: {
+          paid_amount: paymentData.amount,
+          cart_total: cartTotal,
+        },
+      });
+    }
+
+    // Verify customer email matches
+    if (paymentData.customer?.email !== customer.email) {
+      console.warn("Customer email mismatch:", {
+        payment_email: paymentData.customer?.email,
+        customer_email: customer.email,
+      });
+    }
+
+    // Create order from cart
+    try {
+      // Prepare order items from cart items
+      const orderItems = cart.items.map((item: any) => ({
+        title: item.title,
+        subtitle: item.subtitle,
+        thumbnail: item.thumbnail,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        product_id: item.product_id,
+        variant_id: item.variant_id,
+      }));
+
+      // Prepare order metadata with payment info
+      const orderMetadata: any = {
+        payment_provider: "paystack",
+        payment_reference: paymentData.reference,
+        payment_status: paymentData.status,
+        payment_channel: paymentData.channel,
+        payment_paid_at: paymentData.paid_at,
+        payment_transaction_id: paymentData.id,
+        payment_gateway_response: paymentData.gateway_response,
+        payment_authorization_code: paymentData.authorization?.authorization_code,
+        payment_card_type: paymentData.authorization?.card_type,
+        payment_last4: paymentData.authorization?.last4,
+        payment_bank: paymentData.authorization?.bank,
+      };
+
+      // Create order
+      const orderResult = await orderModuleService.createOrders({
+        currency_code: cart.currency_code || "ghs",
+        region_id: cart.region_id,
+        items: orderItems,
+        customer_id: customer.id,
+        email: cart.email || customer.email,
+        ...(cart.shipping_address && { shipping_address: cart.shipping_address }),
+        ...(cart.billing_address && { billing_address: cart.billing_address }),
+        metadata: orderMetadata,
+      } as any);
+
+      // Handle both array and single order return types
+      const order = Array.isArray(orderResult) ? orderResult[0] : orderResult;
+
+      if (!order) {
+        throw new Error("Failed to create order - no order returned");
+      }
+
+      // Format order response
+      const formattedOrder = {
+        id: order.id,
+        display_id: (order as any).display_id || order.id,
+        status: order.status,
+        email: order.email,
+        currency_code: order.currency_code,
+        total: order.total,
+        subtotal: order.subtotal,
+        tax_total: order.tax_total,
+        shipping_total: order.shipping_total,
+        discount_total: order.discount_total,
+        items: order.items?.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          subtitle: item.subtitle,
+          thumbnail: item.thumbnail,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total: item.total,
+          product_id: item.product_id,
+          variant_id: item.variant_id,
+        })) || [],
+        shipping_address: order.shipping_address,
+        billing_address: order.billing_address,
+        metadata: order.metadata || {},
+        created_at: order.created_at,
+        updated_at: order.updated_at,
+      };
+
+      // Clear cart from session after successful order creation
+      if (req.session) {
+        delete req.session.cart_id;
+        delete req.session.payment_reference;
+      }
+
+      // Delete the cart after order creation
+      try {
+        await cartModuleService.deleteCarts([cartId]);
+      } catch (error) {
+        console.warn("Failed to delete cart after order creation:", error);
+        // Don't fail the request if cart deletion fails
+      }
+
+      res.status(200).json({
+        success: true,
+        message: "Payment verified and order created successfully",
+        order: formattedOrder,
+        payment: {
+          reference: paymentData.reference,
+          amount: paymentData.amount,
+          currency: paymentData.currency,
+          status: paymentData.status,
+          channel: paymentData.channel,
+          paid_at: paymentData.paid_at,
+          gateway_response: paymentData.gateway_response,
+        },
+      });
+    } catch (error) {
+      console.error("Error creating order:", error);
+      res.status(500).json({
+        error: "Failed to create order",
+        message: error.message || "Order creation failed after payment verification",
+      });
+    }
+  } catch (error) {
+    console.error("Error verifying Paystack payment:", error);
+    res.status(500).json({
+      error: "Payment verification failed",
+      message: error.message || "An unexpected error occurred",
+    });
+  }
+}
+

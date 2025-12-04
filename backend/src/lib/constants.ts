@@ -43,6 +43,11 @@ export const AUTH_CORS = process.env.AUTH_CORS;
 export const STORE_CORS = process.env.STORE_CORS;
 
 /**
+ * Frontend URL for payment callbacks and redirects
+ */
+export const FRONTEND_URL = process.env.FRONTEND_URL;
+
+/**
  * JWT Secret used for signing JWT tokens
  */
 export const JWT_SECRET = assertValue(
