@@ -58,7 +58,7 @@ const LoginButton = () => {
     window.location.href = 'http://localhost:9000/oauth/google';
   };
 
-  return <button onClick={handleGoogleLogin}>Sign in with Google</button>;
+  return <button onClick={handleGoogleLogin} >Sign in with Google</button>;
 };
 ```
 
