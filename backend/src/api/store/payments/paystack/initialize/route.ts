@@ -40,13 +40,39 @@ export async function POST(
     const cartModuleService: ICartModuleService = req.scope.resolve(Modules.CART);
     const customerModuleService: ICustomerModuleService = req.scope.resolve(Modules.CUSTOMER);
 
-    // Get customer
-    const customer = await getCustomerFromAuth(authContext, customerModuleService);
+    // Get customer, create if doesn't exist
+    let customer = await getCustomerFromAuth(authContext, customerModuleService);
+    
     if (!customer) {
-      return res.status(400).json({
-        error: "Customer not found",
-        message: "Unable to find customer profile",
-      });
+      // User is authenticated but no customer record exists
+      // Create customer record automatically
+      const customerEmail = authContext.actor_id;
+      
+      if (!customerEmail) {
+        return res.status(400).json({
+          error: "Invalid authentication",
+          message: "Unable to determine customer email from authentication context",
+        });
+      }
+
+      try {
+        const newCustomer = await customerModuleService.createCustomers({
+          email: customerEmail,
+        });
+
+        customer = {
+          id: newCustomer.id,
+          email: newCustomer.email,
+        };
+
+        console.log("Created customer record for authenticated user:", customer.email);
+      } catch (error) {
+        console.error("Failed to create customer record:", error);
+        return res.status(500).json({
+          error: "Customer creation failed",
+          message: "Unable to create customer profile. Please try again or contact support.",
+        });
+      }
     }
 
     // Get cart

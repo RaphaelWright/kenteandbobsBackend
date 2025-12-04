@@ -626,6 +626,18 @@ PAYSTACK_SECRET_KEY=sk_test_your_key_here
 npm run dev
 ```
 
+### Issue: "Customer not found" / "Unable to find customer profile"
+
+**Causes:**
+- User is authenticated but doesn't have a customer record in Medusa yet
+- Customer creation failed during signup
+
+**Solution:**
+✅ **FIXED** - The system now auto-creates customer records during payment initialization if they don't exist.
+- If you still see this error, check that the user is properly authenticated
+- Verify `authContext.actor_id` contains the user's email
+- Check backend logs for customer creation errors
+
 ### Issue: "Payment initialization failed"
 
 **Causes:**
