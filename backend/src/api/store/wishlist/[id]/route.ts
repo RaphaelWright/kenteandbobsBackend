@@ -1,4 +1,6 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
+import { IAuthModuleService } from "@medusajs/framework/types";
+import { Modules } from "@medusajs/framework/utils";
 import WishlistModuleService from "../../../../modules/wishlist/service";
 
 /**
@@ -14,13 +16,39 @@ export async function DELETE(
   try {
     // Get customer from auth context
     const authContext = req.session?.auth_context;
-    const customerId = authContext?.actor_id;
     
-    if (!customerId) {
+    if (!authContext || !authContext.auth_identity_id) {
       return res.status(401).json({
         error: "Unauthorized",
         message: "You must be logged in to remove items from your wishlist",
       });
+    }
+
+    // Get customer_id from app_metadata in session, or retrieve from auth identity
+    let customerId = authContext.app_metadata?.customer_id;
+    
+    if (!customerId) {
+      // Retrieve auth identity to get customer_id from app_metadata
+      const authModuleService: IAuthModuleService = req.scope.resolve(Modules.AUTH);
+      const authIdentity = await authModuleService.retrieveAuthIdentity(
+        authContext.auth_identity_id
+      ) as any;
+      
+      if (!authIdentity) {
+        return res.status(401).json({
+          error: "Unauthorized",
+          message: "You must be logged in to remove items from your wishlist",
+        });
+      }
+      
+      customerId = authIdentity.app_metadata?.customer_id;
+      
+      if (!customerId) {
+        return res.status(401).json({
+          error: "Unauthorized",
+          message: "You must be logged in to remove items from your wishlist",
+        });
+      }
     }
 
     const { id } = req.params;
@@ -79,13 +107,39 @@ export async function GET(
   try {
     // Get customer from auth context
     const authContext = req.session?.auth_context;
-    const customerId = authContext?.actor_id;
     
-    if (!customerId) {
+    if (!authContext || !authContext.auth_identity_id) {
       return res.status(401).json({
         error: "Unauthorized",
         message: "You must be logged in to view wishlist items",
       });
+    }
+
+    // Get customer_id from app_metadata in session, or retrieve from auth identity
+    let customerId = authContext.app_metadata?.customer_id;
+    
+    if (!customerId) {
+      // Retrieve auth identity to get customer_id from app_metadata
+      const authModuleService: IAuthModuleService = req.scope.resolve(Modules.AUTH);
+      const authIdentity = await authModuleService.retrieveAuthIdentity(
+        authContext.auth_identity_id
+      ) as any;
+      
+      if (!authIdentity) {
+        return res.status(401).json({
+          error: "Unauthorized",
+          message: "You must be logged in to view wishlist items",
+        });
+      }
+      
+      customerId = authIdentity.app_metadata?.customer_id;
+      
+      if (!customerId) {
+        return res.status(401).json({
+          error: "Unauthorized",
+          message: "You must be logged in to view wishlist items",
+        });
+      }
     }
 
     const { id } = req.params;
