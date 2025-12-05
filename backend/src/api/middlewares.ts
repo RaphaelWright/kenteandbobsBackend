@@ -71,10 +71,6 @@ export default defineMiddlewares({
       middlewares: [authenticate]
     },
     {
-      matcher: "/store/orders*",
-      middlewares: [authenticate]
-    },
-    {
       matcher: "/store/cart/complete",
       middlewares: [authenticate]
     }
