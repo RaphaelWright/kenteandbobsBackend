@@ -12,8 +12,9 @@ export async function GET(
   res: MedusaResponse
 ) {
   try {
-    // Check authentication
-    const authContext = req.session?.auth_context;
+    // Auth context is already validated by middleware and attached to req.auth
+    // Fallback to session if middleware didn't set it (shouldn't happen with current setup)
+    const authContext = (req as any).auth || req.session?.auth_context;
 
     if (!authContext || !authContext.auth_identity_id) {
       return res.status(401).json({
