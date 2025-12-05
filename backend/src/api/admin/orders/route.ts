@@ -112,7 +112,7 @@ export async function GET(
       let paymentStatus = "not_paid";
       
       // Get metadata (handle both object and parsed JSON string)
-      let metadata = {};
+      let metadata: any = {};
       try {
         if (typeof order.metadata === 'string') {
           metadata = JSON.parse(order.metadata || '{}');
