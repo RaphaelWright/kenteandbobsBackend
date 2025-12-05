@@ -193,3 +193,60 @@ export async function getCustomerFromAuth(
   return null;
 }
 
+/**
+ * Calculate cart totals from items
+ * Medusa v2 carts often have totals at 0 until explicitly calculated
+ */
+export async function calculateAndUpdateCartTotals(
+  cartId: string,
+  cartModuleService: any
+): Promise<void> {
+  try {
+    // Retrieve cart with items
+    const cart = await cartModuleService.retrieveCart(cartId, {
+      relations: ["items"],
+    });
+
+    if (!cart.items || cart.items.length === 0) {
+      // Empty cart - set all totals to 0
+      await cartModuleService.updateCarts(cartId, {
+        subtotal: 0,
+        total: 0,
+        tax_total: 0,
+        shipping_total: 0,
+        discount_total: 0,
+      });
+      return;
+    }
+
+    // Calculate subtotal from items
+    const subtotal = cart.items.reduce((sum: number, item: any) => {
+      return sum + (item.unit_price || 0) * (item.quantity || 0);
+    }, 0);
+
+    // For now, tax and shipping are 0 (can be enhanced later)
+    const tax_total = 0;
+    const shipping_total = 0;
+    const discount_total = 0;
+    const total = subtotal + tax_total + shipping_total - discount_total;
+
+    // Update cart totals
+    await cartModuleService.updateCarts(cartId, {
+      subtotal,
+      total,
+      tax_total,
+      shipping_total,
+      discount_total,
+    });
+
+    console.log(`Cart ${cartId} totals calculated:`, {
+      subtotal,
+      total,
+      items_count: cart.items.length,
+    });
+  } catch (error) {
+    console.error("Error calculating cart totals:", error);
+    // Don't throw - allow operation to continue
+  }
+}
+

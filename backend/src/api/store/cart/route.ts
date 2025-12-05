@@ -1,7 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
 import { ICartModuleService, ICustomerModuleService, IAuthModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
-import { formatCartResponse, getCartId, getCustomerFromAuth } from "./helpers";
+import { formatCartResponse, getCartId, getCustomerFromAuth, calculateAndUpdateCartTotals } from "./helpers";
 
 /**
  * GET /store/cart
@@ -90,6 +90,16 @@ export async function GET(
       if (req.session) {
         req.session.cart_id = cart.id;
       }
+    }
+
+    // Calculate cart totals if cart has items
+    if (cart.items && cart.items.length > 0) {
+      await calculateAndUpdateCartTotals(cart.id, cartModuleService);
+      
+      // Retrieve cart again with updated totals
+      cart = await cartModuleService.retrieveCart(cart.id, {
+        relations: ["items"]
+      });
     }
 
     // Format cart response with product details

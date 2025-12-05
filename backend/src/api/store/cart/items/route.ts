@@ -2,7 +2,7 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
 import { addToCartWorkflow, updateLineItemInCartWorkflow } from "@medusajs/medusa/core-flows";
 import { ICartModuleService, ICustomerModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
-import { formatCartResponse, getCartId } from "../helpers";
+import { formatCartResponse, getCartId, calculateAndUpdateCartTotals } from "../helpers";
 
 /**
  * POST /store/cart/items
@@ -141,7 +141,29 @@ export async function POST(
           throw new Error("Cart not found after update");
         }
 
-        const formattedCart = await formatCartResponse(refreshedCart, query);
+        // Calculate cart totals
+        await calculateAndUpdateCartTotals(targetCartId, cartModuleService);
+
+        // Fetch cart again with updated totals
+        const { data: finalCarts } = await query.graph({
+          entity: "cart",
+          fields: [
+            "id", 
+            "customer_id", 
+            "email", 
+            "currency_code", 
+            "region_id", 
+            "items.*",
+            "subtotal",
+            "tax_total",
+            "shipping_total",
+            "discount_total",
+            "total"
+          ],
+          filters: { id: targetCartId },
+        });
+
+        const formattedCart = await formatCartResponse(finalCarts?.[0] || refreshedCart, query);
 
         return res.json({
           message: "Item quantity updated in cart",
@@ -191,7 +213,29 @@ export async function POST(
         throw new Error("Cart not found after adding item");
       }
 
-      const formattedCart = await formatCartResponse(updatedCart, query);
+      // Calculate cart totals
+      await calculateAndUpdateCartTotals(targetCartId, cartModuleService);
+
+      // Fetch cart again with updated totals
+      const { data: finalCarts } = await query.graph({
+        entity: "cart",
+        fields: [
+          "id", 
+          "customer_id", 
+          "email", 
+          "currency_code", 
+          "region_id", 
+          "items.*",
+          "subtotal",
+          "tax_total",
+          "shipping_total",
+          "discount_total",
+          "total"
+        ],
+        filters: { id: targetCartId },
+      });
+
+      const formattedCart = await formatCartResponse(finalCarts?.[0] || updatedCart, query);
 
       res.status(201).json({
         message: "Item added to cart successfully",

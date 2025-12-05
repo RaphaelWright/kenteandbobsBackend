@@ -154,9 +154,15 @@ export async function POST(
 
     // Calculate cart total (in pesewas/kobo)
     // Medusa stores amounts in the smallest currency unit (e.g., pesewas for GHS)
-    const cartTotal = cart.items.reduce((total: number, item: any) => {
-      return total + (item.unit_price * item.quantity);
-    }, 0);
+    // Use cart.total if available and > 0, otherwise calculate from items
+    let cartTotal = cart.total || 0;
+    
+    if (cartTotal <= 0) {
+      // Fallback: Calculate from items (backward compatibility)
+      cartTotal = cart.items.reduce((total: number, item: any) => {
+        return total + (item.unit_price * item.quantity);
+      }, 0);
+    }
 
     if (cartTotal <= 0) {
       return res.status(400).json({
@@ -164,6 +170,26 @@ export async function POST(
         message: "Cart total must be greater than zero",
       });
     }
+
+    // ⚠️ TEMPORARY HACK: Multiply by 100 to convert prices to correct pesewas
+    // WARNING: This creates inconsistency between cart display and payment amount!
+    // TODO: Fix product prices in database instead of using this workaround
+    const PRICE_MULTIPLIER = parseInt(process.env.PAYSTACK_PRICE_MULTIPLIER || "1");
+    if (PRICE_MULTIPLIER !== 1) {
+      console.warn("⚠️ WARNING: Using price multiplier hack. Cart shows different amount than payment!");
+      console.log("Cart amount:", cartTotal, "pesewas (GH₵", (cartTotal / 100).toFixed(2), ")");
+      cartTotal = cartTotal * PRICE_MULTIPLIER;
+      console.log("Paystack amount:", cartTotal, "pesewas (GH₵", (cartTotal / 100).toFixed(2), ")");
+    }
+
+    console.log("Paystack payment amount:", {
+      cart_id: cartId,
+      amount: cartTotal,
+      currency: cart.currency_code,
+      items_count: cart.items.length,
+      using_cart_total: cart.total > 0,
+      multiplier_applied: PRICE_MULTIPLIER,
+    });
 
     // Get request data
     const {
