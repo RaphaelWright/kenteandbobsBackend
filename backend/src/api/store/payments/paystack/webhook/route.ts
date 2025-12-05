@@ -1,4 +1,6 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
+import { IOrderModuleService } from "@medusajs/framework/types";
+import { Modules } from "@medusajs/framework/utils";
 import { createHmac } from "crypto";
 import { PAYSTACK_SECRET_KEY } from "../../../../../lib/constants";
 
@@ -111,13 +113,68 @@ async function handleChargeSuccess(data: any, req: MedusaRequest) {
       customer: data.customer?.email,
     });
 
-    // Note: Order creation is handled in the verify endpoint
-    // This webhook is primarily for logging and redundancy
-    // You can add additional logic here if needed (e.g., sending confirmation emails)
+    // Find order by payment reference and update payment status
+    const orderModuleService: IOrderModuleService = req.scope.resolve(Modules.ORDER);
+    const query = req.scope.resolve("query");
 
-    // TODO: Add order status update logic if needed
-    // const orderModuleService = req.scope.resolve(Modules.ORDER);
-    // Check if order exists for this reference and update status if needed
+    // Search for orders with this payment reference in metadata
+    // Note: We fetch all orders and filter manually since metadata filtering may not work
+    const { data: orders } = await query.graph({
+      entity: "order",
+      fields: [
+        "id",
+        "metadata",
+        "status",
+        "total",
+      ],
+      filters: {},
+      pagination: {
+        take: 100, // Limit to recent 100 orders for performance
+      },
+    });
+
+    // Find order with matching payment reference
+    const matchingOrder = orders.find((order: any) => 
+      order.metadata?.payment_reference === data.reference
+    );
+
+    if (matchingOrder) {
+      // Prepare comprehensive payment metadata
+      const updatedMetadata = {
+        ...matchingOrder.metadata,
+        payment_status: "success",
+        payment_captured: true,
+        payment_captured_at: data.paid_at || new Date().toISOString(),
+        payment_gateway_response: data.gateway_response,
+        webhook_received_at: new Date().toISOString(),
+        payment_channel: data.channel,
+        payment_transaction_id: data.id,
+      };
+
+      // Add authorization details if available
+      if (data.authorization) {
+        updatedMetadata.payment_authorization_code = data.authorization.authorization_code;
+        updatedMetadata.payment_card_type = data.authorization.card_type;
+        updatedMetadata.payment_last4 = data.authorization.last4;
+        updatedMetadata.payment_bank = data.authorization.bank;
+      }
+
+      // Update order metadata to mark payment as captured
+      await orderModuleService.updateOrders({
+        id: matchingOrder.id,
+        metadata: updatedMetadata,
+      });
+
+      console.log("✓ Order payment status updated via webhook:", {
+        order_id: matchingOrder.id,
+        reference: data.reference,
+        amount: data.amount,
+        status: "success",
+      });
+    } else {
+      console.log("⚠ No order found for payment reference:", data.reference);
+      console.log("Searched through", orders.length, "orders");
+    }
 
   } catch (error) {
     console.error("Error handling charge.success:", error);
@@ -136,10 +193,54 @@ async function handleChargeFailed(data: any, req: MedusaRequest) {
       gateway_response: data.gateway_response,
     });
 
-    // TODO: Add logic to handle failed payments
-    // - Log the failure
-    // - Send notification to customer
-    // - Update any payment records
+    // Find order by payment reference and update payment status
+    const orderModuleService: IOrderModuleService = req.scope.resolve(Modules.ORDER);
+    const query = req.scope.resolve("query");
+
+    // Search for orders with this payment reference in metadata
+    const { data: orders } = await query.graph({
+      entity: "order",
+      fields: [
+        "id",
+        "metadata",
+        "status",
+      ],
+      filters: {},
+      pagination: {
+        take: 100, // Limit to recent 100 orders for performance
+      },
+    });
+
+    // Find order with matching payment reference
+    const matchingOrder = orders.find((order: any) => 
+      order.metadata?.payment_reference === data.reference
+    );
+
+    if (matchingOrder) {
+      // Update order metadata to mark payment as failed
+      await orderModuleService.updateOrders({
+        id: matchingOrder.id,
+        metadata: {
+          ...matchingOrder.metadata,
+          payment_status: "failed",
+          payment_captured: false,
+          payment_failed_at: new Date().toISOString(),
+          payment_failure_reason: data.gateway_response,
+          payment_channel: data.channel,
+          payment_transaction_id: data.id,
+          webhook_received_at: new Date().toISOString(),
+        },
+      });
+
+      console.log("✗ Order payment marked as failed via webhook:", {
+        order_id: matchingOrder.id,
+        reference: data.reference,
+        reason: data.gateway_response,
+      });
+    } else {
+      console.log("⚠ No order found for payment reference:", data.reference);
+      console.log("Searched through", orders.length, "orders");
+    }
 
   } catch (error) {
     console.error("Error handling charge.failed:", error);

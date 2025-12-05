@@ -73,6 +73,7 @@ export async function GET(
         "tax_total",
         "shipping_total",
         "discount_total",
+        "metadata",
         "created_at",
         "updated_at",
         "canceled_at",
@@ -108,6 +109,21 @@ export async function GET(
       });
     }
 
+    // Determine payment status from multiple sources
+    let paymentStatus = "not_paid";
+    
+    // First check payment_collections
+    if (order.payment_collections?.[0]?.status) {
+      paymentStatus = order.payment_collections[0].status;
+    }
+    // Then check metadata for Paystack payments
+    else if (order.metadata?.payment_status === "success" || order.metadata?.payment_captured === true) {
+      paymentStatus = "captured";
+    }
+    else if (order.metadata?.payment_provider === "paystack" && order.metadata?.payment_reference) {
+      paymentStatus = "awaiting";
+    }
+
     // Format the order for response
     const formattedOrder = {
       id: order.id,
@@ -120,6 +136,7 @@ export async function GET(
       tax_total: order.tax_total,
       shipping_total: order.shipping_total,
       discount_total: order.discount_total,
+      metadata: order.metadata || {},
       items: order.items?.map((item: any) => ({
         id: item.id,
         title: item.title,
@@ -195,7 +212,7 @@ export async function GET(
           line_item_id: item.line_item_id,
         })) || [],
       })) || [],
-      payment_status: order.payment_collections?.[0]?.status || "not_paid",
+      payment_status: paymentStatus,
       fulfillment_status: order.fulfillments?.length > 0 ? "fulfilled" : "not_fulfilled",
       created_at: order.created_at,
       updated_at: order.updated_at,

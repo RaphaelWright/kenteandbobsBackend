@@ -584,7 +584,7 @@ function CheckoutPage() {
   
   return (
     <div>
-      <h1>Checkout</h1>
+      <h1>Checkou fix</h1>
       {error && <div className="error">{error}</div>}
       {/* Checkout form here */}
       <button onClick={() => handleSubmit(formData)} disabled={loading}>

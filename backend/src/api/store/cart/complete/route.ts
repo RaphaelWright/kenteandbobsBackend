@@ -248,6 +248,12 @@ export async function POST(
       
       if (payment) {
         orderMetadata.payment_method = payment.paymentMethod;
+        // Initialize payment status fields
+        // For mobile_money and card, payment is typically captured immediately
+        // Set initial status as awaiting payment
+        orderMetadata.payment_status = "pending";
+        orderMetadata.payment_captured = false;
+        orderMetadata.payment_initialized_at = new Date().toISOString();
         // Note: Never store actual card numbers or CVV in metadata
         // Only store payment method type for reference
       }
