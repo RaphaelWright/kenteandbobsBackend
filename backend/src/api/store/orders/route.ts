@@ -90,7 +90,7 @@ export async function GET(
     }
 
     // Fetch orders using the query service for better field resolution
-    const { data: orders, metadata } = await query.graph({
+    const { data: orders, metadata: queryMetadata } = await query.graph({
       entity: "order",
       fields: [
         "id",
@@ -98,6 +98,7 @@ export async function GET(
         "display_id",
         "version",
         "email",
+        "customer_id",
         "currency_code",
         "total",
         "subtotal",
@@ -129,8 +130,18 @@ export async function GET(
       // Determine payment status from multiple sources
       let paymentStatus = "not_paid";
       
-      // Get metadata safely
-      const metadata = order.metadata || {};
+      // Get metadata (handle both object and parsed JSON string)
+      let metadata: any = {};
+      try {
+        if (typeof order.metadata === 'string') {
+          metadata = JSON.parse(order.metadata || '{}');
+        } else if (order.metadata) {
+          metadata = order.metadata;
+        }
+      } catch (error) {
+        console.warn(`Failed to parse metadata for order ${order.id}:`, error);
+        metadata = {};
+      }
       
       // First check payment_collections
       if (order.payment_collections?.[0]?.status) {
@@ -161,17 +172,27 @@ export async function GET(
         paymentStatus = "failed";
       }
 
+      // Get customer name if available
+      const customerName = customer 
+        ? `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || customer.email || order.email
+        : order.email;
+
       return {
         id: order.id,
         display_id: order.display_id,
         status: order.status,
         email: order.email,
+        customer_id: order.customer_id,
+        customer_name: customerName,
+        customer_first_name: customer?.first_name || null,
+        customer_last_name: customer?.last_name || null,
         currency_code: order.currency_code,
         total: order.total,
         subtotal: order.subtotal,
         tax_total: order.tax_total,
         shipping_total: order.shipping_total,
         discount_total: order.discount_total,
+        metadata: metadata,
         items: order.items?.map((item: any) => ({
           id: item.id,
           title: item.title,
@@ -235,6 +256,7 @@ export async function GET(
       count: formattedOrders.length,
       offset: Number(offset),
       limit: Number(limit),
+      total: queryMetadata?.count || formattedOrders.length,
     });
 
   } catch (error) {
