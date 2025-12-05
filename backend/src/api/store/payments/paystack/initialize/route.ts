@@ -1,7 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
-import { ICartModuleService, ICustomerModuleService } from "@medusajs/framework/types";
+import { ICartModuleService, ICustomerModuleService, IAuthModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
-import { getCartId, getCustomerFromAuth } from "../../../cart/helpers";
+import { getCartId } from "../../../cart/helpers";
 import { PAYSTACK_SECRET_KEY } from "../../../../../lib/constants";
 
 interface InitializePaymentRequest {
@@ -39,31 +39,47 @@ export async function POST(
 
     const cartModuleService: ICartModuleService = req.scope.resolve(Modules.CART);
     const customerModuleService: ICustomerModuleService = req.scope.resolve(Modules.CUSTOMER);
+    const authModuleService: IAuthModuleService = req.scope.resolve(Modules.AUTH);
 
-    // Get customer, create if doesn't exist
-    let customer = await getCustomerFromAuth(authContext, customerModuleService);
+    // Retrieve auth identity to get customer email properly
+    const authIdentity = await authModuleService.retrieveAuthIdentity(
+      authContext.auth_identity_id
+    ) as any;
+
+    if (!authIdentity) {
+      console.error("Auth identity not found for ID:", authContext.auth_identity_id);
+      return res.status(404).json({
+        error: "User not found",
+        message: "Unable to find authentication identity"
+      });
+    }
+
+    const customerEmail = authIdentity.entity_id;
+    console.log("Retrieved customer email from auth identity:", customerEmail);
     
-    if (!customer) {
+    if (!customerEmail) {
+      console.error("Auth identity missing entity_id:", authIdentity);
+      return res.status(400).json({
+        error: "Invalid authentication",
+        message: "Unable to determine customer email from authentication context",
+      });
+    }
+
+    // Try to find existing customer by email
+    let customer;
+    const customers = await customerModuleService.listCustomers({
+      email: customerEmail,
+    });
+
+    if (customers && customers.length > 0) {
+      customer = customers[0];
+    } else {
       // User is authenticated but no customer record exists
       // Create customer record automatically
-      const customerEmail = authContext.actor_id;
-      
-      if (!customerEmail) {
-        return res.status(400).json({
-          error: "Invalid authentication",
-          message: "Unable to determine customer email from authentication context",
-        });
-      }
-
       try {
-        const newCustomer = await customerModuleService.createCustomers({
+        customer = await customerModuleService.createCustomers({
           email: customerEmail,
         });
-
-        customer = {
-          id: newCustomer.id,
-          email: newCustomer.email,
-        };
 
         console.log("Created customer record for authenticated user:", customer.email);
       } catch (error) {

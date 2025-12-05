@@ -634,9 +634,18 @@ npm run dev
 
 **Solution:**
 ✅ **FIXED** - The system now auto-creates customer records during payment initialization if they don't exist.
-- If you still see this error, check that the user is properly authenticated
-- Verify `authContext.actor_id` contains the user's email
-- Check backend logs for customer creation errors
+
+### Issue: "Invalid authentication" / "Unable to determine customer email"
+
+**Causes:**
+- Authentication context not properly populated
+- Auth identity missing or malformed
+
+**Solution:**
+✅ **FIXED** - The system now properly retrieves customer email from `authIdentity.entity_id` instead of relying on `authContext.actor_id`.
+- If you still see this error, check backend logs for detailed error messages
+- Ensure the user is properly authenticated with a valid session
+- Verify the auth identity exists in the database
 
 ### Issue: "Payment initialization failed"
 
