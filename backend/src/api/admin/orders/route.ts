@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
-import { IOrderModuleService } from "@medusajs/framework/types";
+import { IOrderModuleService, ICustomerModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
 
 /**
@@ -15,6 +15,7 @@ export async function GET(
   try {
     // Resolve services
     const orderModuleService: IOrderModuleService = req.scope.resolve(Modules.ORDER);
+    const customerModuleService: ICustomerModuleService = req.scope.resolve(Modules.CUSTOMER);
     const query = req.scope.resolve("query");
 
     // Query parameters for pagination and filtering
@@ -47,6 +48,7 @@ export async function GET(
         "display_id",
         "version",
         "email",
+        "customer_id",
         "currency_code",
         "total",
         "subtotal",
@@ -73,36 +75,102 @@ export async function GET(
       },
     });
 
+    // Fetch customer information for all orders
+    const customerIds = [...new Set(orders
+      .map((order: any) => order.customer_id)
+      .filter((id: string | null | undefined) => id != null))];
+    
+    const customersMap = new Map();
+    if (customerIds.length > 0) {
+      try {
+        // Fetch customers in parallel
+        const customerPromises = customerIds.map(async (customerId: string) => {
+          try {
+            const customer = await customerModuleService.retrieveCustomer(customerId);
+            return { id: customerId, customer };
+          } catch (error) {
+            // Customer might not exist, return null
+            return { id: customerId, customer: null };
+          }
+        });
+        
+        const customerResults = await Promise.all(customerPromises);
+        customerResults.forEach(({ id, customer }) => {
+          if (customer) {
+            customersMap.set(id, customer);
+          }
+        });
+      } catch (error) {
+        console.warn("Error fetching customers for orders:", error);
+      }
+    }
+
     // Format the orders for response
     const formattedOrders = orders.map((order: any) => {
       // Determine payment status from multiple sources
       // This is the key fix - properly check metadata for Paystack payments
       let paymentStatus = "not_paid";
       
+      // Get metadata (handle both object and parsed JSON string)
+      let metadata = {};
+      try {
+        if (typeof order.metadata === 'string') {
+          metadata = JSON.parse(order.metadata || '{}');
+        } else if (order.metadata) {
+          metadata = order.metadata;
+        }
+      } catch (error) {
+        console.warn(`Failed to parse metadata for order ${order.id}:`, error);
+        metadata = {};
+      }
+      
       // First check payment_collections (Medusa's standard payment system)
       if (order.payment_collections?.[0]?.status) {
         paymentStatus = order.payment_collections[0].status;
       }
-      // Then check metadata for Paystack payments
-      else if (order.metadata?.payment_status === "success" || order.metadata?.payment_captured === true) {
+      // Then check metadata for Paystack payments - comprehensive check
+      else if (
+        metadata.payment_status === "success" || 
+        metadata.payment_captured === true ||
+        metadata.payment_captured === "true" ||
+        (metadata.payment_provider === "paystack" && metadata.payment_captured_at)
+      ) {
         paymentStatus = "captured";
       }
-      else if (order.metadata?.payment_provider === "paystack" && order.metadata?.payment_reference) {
+      // Check if payment is pending/awaiting
+      else if (
+        metadata.payment_provider === "paystack" && 
+        (metadata.payment_reference || metadata.payment_status === "pending")
+      ) {
         paymentStatus = "awaiting";
       }
+      // Check if payment failed
+      else if (metadata.payment_status === "failed") {
+        paymentStatus = "failed";
+      }
+
+      // Get customer information
+      const customer = order.customer_id ? customersMap.get(order.customer_id) : null;
+      const customerName = customer 
+        ? `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || customer.email || "Unknown"
+        : order.email || "Unknown";
 
       return {
         id: order.id,
         display_id: order.display_id,
         status: order.status,
         email: order.email,
+        customer_id: order.customer_id,
+        customer_name: customerName,
+        customer_first_name: customer?.first_name || null,
+        customer_last_name: customer?.last_name || null,
         currency_code: order.currency_code,
         total: order.total,
         subtotal: order.subtotal,
         tax_total: order.tax_total,
         shipping_total: order.shipping_total,
         discount_total: order.discount_total,
-        metadata: order.metadata || {},
+        metadata: metadata,
         items: order.items?.map((item: any) => ({
           id: item.id,
           title: item.title,
