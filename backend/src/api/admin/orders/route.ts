@@ -124,16 +124,31 @@ export async function GET(
         metadata = {};
       }
       
+      // Debug log for troubleshooting
+      if (metadata.payment_provider === "paystack") {
+        console.log(`Payment metadata for order ${order.id}:`, {
+          payment_status: metadata.payment_status,
+          payment_captured: metadata.payment_captured,
+          payment_captured_type: typeof metadata.payment_captured,
+          payment_captured_at: metadata.payment_captured_at,
+          payment_reference: metadata.payment_reference,
+        });
+      }
+      
       // First check payment_collections (Medusa's standard payment system)
       if (order.payment_collections?.[0]?.status) {
         paymentStatus = order.payment_collections[0].status;
       }
       // Then check metadata for Paystack payments - comprehensive check
+      // Handle all possible truthy variations of payment_captured
       else if (
         metadata.payment_status === "success" || 
         metadata.payment_captured === true ||
         metadata.payment_captured === "true" ||
-        (metadata.payment_provider === "paystack" && metadata.payment_captured_at)
+        metadata.payment_captured === 1 ||
+        metadata.payment_captured === "1" ||
+        (metadata.payment_provider === "paystack" && metadata.payment_captured_at) ||
+        (metadata.payment_provider === "paystack" && metadata.payment_paid_at)
       ) {
         paymentStatus = "captured";
       }

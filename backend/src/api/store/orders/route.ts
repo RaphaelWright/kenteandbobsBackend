@@ -129,16 +129,36 @@ export async function GET(
       // Determine payment status from multiple sources
       let paymentStatus = "not_paid";
       
+      // Get metadata safely
+      const metadata = order.metadata || {};
+      
       // First check payment_collections
       if (order.payment_collections?.[0]?.status) {
         paymentStatus = order.payment_collections[0].status;
       }
-      // Then check metadata for Paystack payments
-      else if (order.metadata?.payment_status === "success" || order.metadata?.payment_captured === true) {
+      // Then check metadata for Paystack payments - comprehensive check
+      // Handle all possible truthy variations of payment_captured
+      else if (
+        metadata.payment_status === "success" || 
+        metadata.payment_captured === true ||
+        metadata.payment_captured === "true" ||
+        metadata.payment_captured === 1 ||
+        metadata.payment_captured === "1" ||
+        (metadata.payment_provider === "paystack" && metadata.payment_captured_at) ||
+        (metadata.payment_provider === "paystack" && metadata.payment_paid_at)
+      ) {
         paymentStatus = "captured";
       }
-      else if (order.metadata?.payment_provider === "paystack" && order.metadata?.payment_reference) {
+      // Check if payment is pending/awaiting
+      else if (
+        metadata.payment_provider === "paystack" && 
+        (metadata.payment_reference || metadata.payment_status === "pending")
+      ) {
         paymentStatus = "awaiting";
+      }
+      // Check if payment failed
+      else if (metadata.payment_status === "failed") {
+        paymentStatus = "failed";
       }
 
       return {
