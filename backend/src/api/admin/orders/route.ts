@@ -1,0 +1,179 @@
+import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
+import { IOrderModuleService } from "@medusajs/framework/types";
+import { Modules } from "@medusajs/framework/utils";
+
+/**
+ * GET /admin/orders
+ * Fetch all orders for admin panel
+ * Includes order details, items, shipping address, and totals
+ * Properly checks metadata for payment status
+ */
+export async function GET(
+  req: MedusaRequest,
+  res: MedusaResponse
+) {
+  try {
+    // Resolve services
+    const orderModuleService: IOrderModuleService = req.scope.resolve(Modules.ORDER);
+    const query = req.scope.resolve("query");
+
+    // Query parameters for pagination and filtering
+    const {
+      limit = 50,
+      offset = 0,
+      status,
+      email,
+      order_by = "created_at",
+      order_direction = "desc"
+    } = req.query;
+
+    // Build filters
+    const filters: any = {};
+
+    if (status) {
+      filters.status = status;
+    }
+
+    if (email) {
+      filters.email = email;
+    }
+
+    // Fetch orders using the query service for better field resolution
+    const { data: orders, metadata } = await query.graph({
+      entity: "order",
+      fields: [
+        "id",
+        "status",
+        "display_id",
+        "version",
+        "email",
+        "currency_code",
+        "total",
+        "subtotal",
+        "tax_total",
+        "shipping_total",
+        "discount_total",
+        "metadata",
+        "created_at",
+        "updated_at",
+        "canceled_at",
+        "items.*",
+        "items.product.*",
+        "items.variant.*",
+        "shipping_address.*",
+        "billing_address.*",
+        "shipping_methods.*",
+        "payment_collections.*",
+        "fulfillments.*",
+      ],
+      filters,
+      pagination: {
+        skip: Number(offset),
+        take: Number(limit),
+      },
+    });
+
+    // Format the orders for response
+    const formattedOrders = orders.map((order: any) => {
+      // Determine payment status from multiple sources
+      // This is the key fix - properly check metadata for Paystack payments
+      let paymentStatus = "not_paid";
+      
+      // First check payment_collections (Medusa's standard payment system)
+      if (order.payment_collections?.[0]?.status) {
+        paymentStatus = order.payment_collections[0].status;
+      }
+      // Then check metadata for Paystack payments
+      else if (order.metadata?.payment_status === "success" || order.metadata?.payment_captured === true) {
+        paymentStatus = "captured";
+      }
+      else if (order.metadata?.payment_provider === "paystack" && order.metadata?.payment_reference) {
+        paymentStatus = "awaiting";
+      }
+
+      return {
+        id: order.id,
+        display_id: order.display_id,
+        status: order.status,
+        email: order.email,
+        currency_code: order.currency_code,
+        total: order.total,
+        subtotal: order.subtotal,
+        tax_total: order.tax_total,
+        shipping_total: order.shipping_total,
+        discount_total: order.discount_total,
+        metadata: order.metadata || {},
+        items: order.items?.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          subtitle: item.subtitle,
+          thumbnail: item.thumbnail,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total: item.total,
+          product_id: item.product_id,
+          variant_id: item.variant_id,
+          product: item.product ? {
+            id: item.product.id,
+            title: item.product.title,
+            thumbnail: item.product.thumbnail,
+          } : null,
+          variant: item.variant ? {
+            id: item.variant.id,
+            title: item.variant.title,
+            sku: item.variant.sku,
+          } : null,
+        })) || [],
+        shipping_address: order.shipping_address ? {
+          id: order.shipping_address.id,
+          first_name: order.shipping_address.first_name,
+          last_name: order.shipping_address.last_name,
+          address_1: order.shipping_address.address_1,
+          address_2: order.shipping_address.address_2,
+          city: order.shipping_address.city,
+          province: order.shipping_address.province,
+          postal_code: order.shipping_address.postal_code,
+          country_code: order.shipping_address.country_code,
+          phone: order.shipping_address.phone,
+        } : null,
+        billing_address: order.billing_address ? {
+          id: order.billing_address.id,
+          first_name: order.billing_address.first_name,
+          last_name: order.billing_address.last_name,
+          address_1: order.billing_address.address_1,
+          address_2: order.billing_address.address_2,
+          city: order.billing_address.city,
+          province: order.billing_address.province,
+          postal_code: order.billing_address.postal_code,
+          country_code: order.billing_address.country_code,
+          phone: order.billing_address.phone,
+        } : null,
+        shipping_methods: order.shipping_methods?.map((method: any) => ({
+          id: method.id,
+          name: method.name,
+          amount: method.amount,
+        })) || [],
+        payment_status: paymentStatus,
+        fulfillment_status: order.fulfillments?.length > 0 ? "fulfilled" : "not_fulfilled",
+        created_at: order.created_at,
+        updated_at: order.updated_at,
+        canceled_at: order.canceled_at,
+      };
+    });
+
+    res.status(200).json({
+      orders: formattedOrders,
+      count: formattedOrders.length,
+      offset: Number(offset),
+      limit: Number(limit),
+      total: metadata?.count || formattedOrders.length,
+    });
+
+  } catch (error) {
+    console.error("Error fetching admin orders:", error);
+    res.status(500).json({
+      error: "Failed to fetch orders",
+      message: error.message,
+    });
+  }
+}

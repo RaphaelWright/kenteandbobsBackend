@@ -159,17 +159,23 @@ async function handleChargeSuccess(data: any, req: MedusaRequest) {
         updatedMetadata.payment_bank = data.authorization.bank;
       }
 
-      // Update order metadata to mark payment as captured
+      // Update order metadata and status to mark payment as captured
+      // Note: Order status remains "pending" until fulfillment, but we ensure
+      // payment metadata is correctly set. The order will move to "completed" 
+      // once items are fulfilled.
       await orderModuleService.updateOrders([{
         id: matchingOrder.id,
         metadata: updatedMetadata,
+        // Keep status as "pending" - it will change to "completed" when fulfilled
+        // The payment_status in metadata correctly reflects payment success
       }]);
 
       console.log("✓ Order payment status updated via webhook:", {
         order_id: matchingOrder.id,
         reference: data.reference,
         amount: data.amount,
-        status: "success",
+        payment_status: "success",
+        order_status: matchingOrder.status,
       });
     } else {
       console.log("⚠ No order found for payment reference:", data.reference);
