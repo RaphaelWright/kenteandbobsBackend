@@ -54,14 +54,46 @@ export async function POST(
       });
     }
 
-    const customerEmail = authIdentity.entity_id;
-    console.log("Retrieved customer email from auth identity:", customerEmail);
+    // Try to get email from multiple sources as fallback
+    let customerEmail = authIdentity.entity_id;
+    
+    // Fallback 1: Try actor_id from auth context (older auth method)
+    if (!customerEmail && authContext.actor_id) {
+      console.log("Using actor_id as fallback email:", authContext.actor_id);
+      customerEmail = authContext.actor_id;
+    }
+    
+    // Fallback 2: Try to get from app_metadata
+    if (!customerEmail && authIdentity.app_metadata?.customer_id) {
+      console.log("Attempting to retrieve email from customer record:", authIdentity.app_metadata.customer_id);
+      try {
+        const customerRecord = await customerModuleService.retrieveCustomer(authIdentity.app_metadata.customer_id);
+        if (customerRecord?.email) {
+          console.log("Retrieved email from customer record:", customerRecord.email);
+          customerEmail = customerRecord.email;
+        }
+      } catch (error) {
+        console.error("Failed to retrieve customer record:", error);
+      }
+    }
+    
+    console.log("Final customer email determined:", customerEmail);
     
     if (!customerEmail) {
-      console.error("Auth identity missing entity_id:", authIdentity);
+      console.error("Unable to determine email from any source:", {
+        authIdentity: {
+          id: authIdentity.id,
+          entity_id: authIdentity.entity_id,
+          app_metadata: authIdentity.app_metadata
+        },
+        authContext: {
+          actor_id: authContext.actor_id,
+          auth_identity_id: authContext.auth_identity_id
+        }
+      });
       return res.status(400).json({
         error: "Invalid authentication",
-        message: "Unable to determine customer email from authentication context",
+        message: "Unable to determine customer email from authentication context. Please log out and log in again.",
       });
     }
 
