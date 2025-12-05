@@ -221,10 +221,10 @@ export async function POST(
     }
 
     // Update the order
-    await orderModuleService.updateOrders({
+    await orderModuleService.updateOrders([{
       id: orderId,
       metadata: updatedMetadata,
-    });
+    }]);
 
     // Fetch updated order
     const { data: updatedOrders } = await query.graph({

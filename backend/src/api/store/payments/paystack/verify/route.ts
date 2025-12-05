@@ -202,14 +202,14 @@ export async function GET(
 
       // Update order to mark payment as captured
       try {
-        await orderModuleService.updateOrders({
+        await orderModuleService.updateOrders([{
           id: order.id,
           metadata: {
             ...orderMetadata,
             payment_captured: true,
             payment_captured_at: new Date().toISOString(),
           },
-        });
+        }]);
 
         console.log("Order payment status updated:", order.id);
       } catch (updateError) {

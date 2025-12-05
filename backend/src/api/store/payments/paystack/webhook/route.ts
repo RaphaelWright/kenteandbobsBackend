@@ -160,10 +160,10 @@ async function handleChargeSuccess(data: any, req: MedusaRequest) {
       }
 
       // Update order metadata to mark payment as captured
-      await orderModuleService.updateOrders({
+      await orderModuleService.updateOrders([{
         id: matchingOrder.id,
         metadata: updatedMetadata,
-      });
+      }]);
 
       console.log("✓ Order payment status updated via webhook:", {
         order_id: matchingOrder.id,
@@ -218,7 +218,7 @@ async function handleChargeFailed(data: any, req: MedusaRequest) {
 
     if (matchingOrder) {
       // Update order metadata to mark payment as failed
-      await orderModuleService.updateOrders({
+      await orderModuleService.updateOrders([{
         id: matchingOrder.id,
         metadata: {
           ...matchingOrder.metadata,
@@ -230,7 +230,7 @@ async function handleChargeFailed(data: any, req: MedusaRequest) {
           payment_transaction_id: data.id,
           webhook_received_at: new Date().toISOString(),
         },
-      });
+      }]);
 
       console.log("✗ Order payment marked as failed via webhook:", {
         order_id: matchingOrder.id,
