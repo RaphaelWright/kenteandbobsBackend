@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
-import { ICartModuleService, IOrderModuleService, ICustomerModuleService } from "@medusajs/framework/types";
+import { ICartModuleService, IOrderModuleService, ICustomerModuleService, IAuthModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
 import { formatCartResponse, getCartId, getCustomerFromAuth } from "../helpers";
 import {
@@ -46,6 +46,7 @@ export async function POST(
     const cartModuleService: ICartModuleService = req.scope.resolve(Modules.CART);
     const orderModuleService: IOrderModuleService = req.scope.resolve(Modules.ORDER);
     const customerModuleService: ICustomerModuleService = req.scope.resolve(Modules.CUSTOMER);
+    const authModuleService: IAuthModuleService = req.scope.resolve(Modules.AUTH);
     const query = req.scope.resolve("query");
 
     const requestBody = req.body as CheckoutRequest;
@@ -92,8 +93,8 @@ export async function POST(
       });
     }
 
-    // Get customer from auth, create if doesn't exist
-    let customer = await getCustomerFromAuth(authContext, customerModuleService);
+    // Get customer from auth, create if doesn't exist (now with fallback mechanisms)
+    let customer = await getCustomerFromAuth(authContext, customerModuleService, authModuleService);
 
     if (!customer) {
       // User is authenticated but no customer record exists

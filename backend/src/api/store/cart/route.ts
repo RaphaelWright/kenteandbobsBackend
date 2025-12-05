@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
-import { ICartModuleService, ICustomerModuleService } from "@medusajs/framework/types";
+import { ICartModuleService, ICustomerModuleService, IAuthModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
 import { formatCartResponse, getCartId, getCustomerFromAuth } from "./helpers";
 
@@ -190,6 +190,7 @@ export async function PATCH(
   try {
     const cartModuleService: ICartModuleService = req.scope.resolve(Modules.CART);
     const customerModuleService: ICustomerModuleService = req.scope.resolve(Modules.CUSTOMER);
+    const authModuleService: IAuthModuleService = req.scope.resolve(Modules.AUTH);
     const query = req.scope.resolve("query");
 
     const cartId = getCartId(req);
@@ -253,7 +254,7 @@ export async function PATCH(
     // Check if user is authenticated and link customer if needed
     const authContext = req.session?.auth_context;
     if (authContext?.auth_identity_id) {
-      const customer = await getCustomerFromAuth(authContext, customerModuleService);
+      const customer = await getCustomerFromAuth(authContext, customerModuleService, authModuleService);
       if (customer && !cart.customer_id) {
         updateData.customer_id = customer.id;
         if (!updateData.email) {

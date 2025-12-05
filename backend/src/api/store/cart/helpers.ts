@@ -103,31 +103,93 @@ export function getCartId(req: any): string | null {
 
 /**
  * Get customer ID from auth context
+ * Now with fallback mechanisms and auto-create capability
  */
 export async function getCustomerFromAuth(
   authContext: any,
-  customerModuleService: any
+  customerModuleService: any,
+  authModuleService?: any
 ): Promise<{ id: string; email: string } | null> {
   if (!authContext?.auth_identity_id) {
     return null;
   }
 
-  const customerEmail = authContext.actor_id;
+  let customerEmail: string | null = null;
+
+  // If authModuleService is provided, use enhanced email retrieval with fallbacks
+  if (authModuleService) {
+    try {
+      const authIdentity = await authModuleService.retrieveAuthIdentity(
+        authContext.auth_identity_id
+      );
+
+      // Primary: Get from entity_id
+      customerEmail = authIdentity?.entity_id;
+
+      // Fallback 1: Try actor_id from auth context
+      if (!customerEmail && authContext.actor_id) {
+        console.log("Using actor_id as fallback email:", authContext.actor_id);
+        customerEmail = authContext.actor_id;
+      }
+
+      // Fallback 2: Try to get from customer record via app_metadata
+      if (!customerEmail && authIdentity?.app_metadata?.customer_id) {
+        console.log("Attempting to retrieve email from customer record:", authIdentity.app_metadata.customer_id);
+        try {
+          const customerRecord = await customerModuleService.retrieveCustomer(
+            authIdentity.app_metadata.customer_id
+          );
+          if (customerRecord?.email) {
+            console.log("Retrieved email from customer record:", customerRecord.email);
+            customerEmail = customerRecord.email;
+          }
+        } catch (error) {
+          console.error("Failed to retrieve customer record:", error);
+        }
+      }
+    } catch (error) {
+      console.error("Error retrieving auth identity:", error);
+    }
+  } else {
+    // Legacy behavior: use actor_id directly (for backward compatibility)
+    customerEmail = authContext.actor_id;
+  }
+
   if (!customerEmail) {
+    console.error("Unable to determine customer email from auth context");
     return null;
   }
 
+  // Try to find existing customer by email
   const customers = await customerModuleService.listCustomers({
     email: customerEmail,
   });
 
-  if (!customers || customers.length === 0) {
-    return null;
+  if (customers && customers.length > 0) {
+    return {
+      id: customers[0].id,
+      email: customers[0].email,
+    };
   }
 
-  return {
-    id: customers[0].id,
-    email: customers[0].email,
-  };
+  // Auto-create customer if authenticated but no customer record exists
+  if (authModuleService) {
+    try {
+      console.log("Auto-creating customer record for:", customerEmail);
+      const newCustomer = await customerModuleService.createCustomers({
+        email: customerEmail,
+      });
+
+      return {
+        id: newCustomer.id,
+        email: newCustomer.email,
+      };
+    } catch (error) {
+      console.error("Failed to auto-create customer:", error);
+      return null;
+    }
+  }
+
+  return null;
 }
 

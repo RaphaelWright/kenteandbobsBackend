@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
-import { ICartModuleService, ICustomerModuleService, IOrderModuleService } from "@medusajs/framework/types";
+import { ICartModuleService, ICustomerModuleService, IOrderModuleService, IAuthModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
 import { getCartId, getCustomerFromAuth } from "../../../cart/helpers";
 import { PAYSTACK_SECRET_KEY } from "../../../../../lib/constants";
@@ -42,15 +42,16 @@ export async function GET(
 
     const cartModuleService: ICartModuleService = req.scope.resolve(Modules.CART);
     const customerModuleService: ICustomerModuleService = req.scope.resolve(Modules.CUSTOMER);
+    const authModuleService: IAuthModuleService = req.scope.resolve(Modules.AUTH);
     const orderModuleService: IOrderModuleService = req.scope.resolve(Modules.ORDER);
     const query = req.scope.resolve("query");
 
-    // Get customer
-    const customer = await getCustomerFromAuth(authContext, customerModuleService);
+    // Get customer (with fallback mechanisms and auto-create)
+    const customer = await getCustomerFromAuth(authContext, customerModuleService, authModuleService);
     if (!customer) {
       return res.status(400).json({
         error: "Customer not found",
-        message: "Unable to find customer profile",
+        message: "Unable to find or create customer profile. Please log out and log in again.",
       });
     }
 
