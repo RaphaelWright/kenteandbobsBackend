@@ -16,7 +16,8 @@ export async function POST(
   res: MedusaResponse
 ) {
   try {
-    const { fix = false, order_id = null } = req.body || {};
+    const body = req.body as { fix?: boolean; order_id?: string } | undefined;
+    const { fix = false, order_id = null } = body || {};
     
     // Resolve services
     const orderModuleService: IOrderModuleService = req.scope.resolve(Modules.ORDER);
@@ -80,7 +81,7 @@ export async function POST(
       const needsFix = likelyPaid && !hasCapturedFlag;
 
       if (needsFix) {
-        const issue = {
+        const issue: any = {
           order_id: order.id,
           display_id: order.display_id,
           email: order.email,
@@ -128,7 +129,7 @@ export async function POST(
                 payment_captured_at: updatedMetadata.payment_captured_at,
               },
             });
-          } catch (error) {
+          } catch (error: any) {
             console.error(`Failed to fix order ${order.id}:`, error);
             issue.fix_error = error.message;
           }
