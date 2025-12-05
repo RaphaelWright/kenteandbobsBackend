@@ -1,0 +1,180 @@
+import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
+import { ICustomerModuleService } from "@medusajs/framework/types";
+import { Modules } from "@medusajs/framework/utils";
+
+/**
+ * Helper to determine payment status from order data
+ */
+function getPaymentStatus(order: any): string {
+  let metadata: any = {};
+  try {
+    metadata = typeof order.metadata === "string" 
+      ? JSON.parse(order.metadata || "{}") 
+      : (order.metadata || {});
+  } catch {
+    metadata = {};
+  }
+
+  if (order.payment_collections?.[0]?.status) {
+    return order.payment_collections[0].status;
+  }
+
+  if (
+    metadata.payment_status === "success" ||
+    metadata.payment_captured === true ||
+    metadata.payment_captured === "true" ||
+    metadata.payment_captured_at ||
+    metadata.payment_paid_at
+  ) {
+    return "captured";
+  }
+
+  if (metadata.payment_status === "pending" || metadata.payment_reference) {
+    return "awaiting";
+  }
+
+  if (metadata.payment_status === "failed") {
+    return "failed";
+  }
+
+  return "not_paid";
+}
+
+/**
+ * GET /store/customer-orders
+ * Fetch all orders for a customer by customer_id or email
+ * 
+ * Query params:
+ *   - customer_id: Customer ID
+ *   - email: Customer email (alternative to customer_id)
+ */
+export async function GET(req: MedusaRequest, res: MedusaResponse) {
+  try {
+    const query = req.scope.resolve("query");
+    const customerModuleService: ICustomerModuleService = req.scope.resolve(Modules.CUSTOMER);
+
+    // Get customer identifier from query params
+    const customerId = req.query.customer_id as string | undefined;
+    const email = req.query.email as string | undefined;
+
+    if (!customerId && !email) {
+      return res.status(400).json({ 
+        error: "customer_id or email is required" 
+      });
+    }
+
+    // Find customer
+    let customer: any = null;
+
+    if (customerId) {
+      try {
+        customer = await customerModuleService.retrieveCustomer(customerId);
+      } catch {
+        // Customer not found by ID
+      }
+    }
+
+    if (!customer && email) {
+      const customers = await customerModuleService.listCustomers({ email });
+      if (customers?.length > 0) {
+        customer = customers[0];
+      }
+    }
+
+    if (!customer) {
+      return res.status(404).json({ error: "Customer not found" });
+    }
+
+    // Fetch orders for customer
+    const { data: orders } = await query.graph({
+      entity: "order",
+      fields: [
+        "id",
+        "status",
+        "display_id",
+        "email",
+        "customer_id",
+        "currency_code",
+        "total",
+        "subtotal",
+        "tax_total",
+        "shipping_total",
+        "discount_total",
+        "metadata",
+        "created_at",
+        "updated_at",
+        "canceled_at",
+        "items.*",
+        "items.product.id",
+        "items.product.title",
+        "items.product.thumbnail",
+        "items.variant.id",
+        "items.variant.title",
+        "items.variant.sku",
+        "shipping_address.*",
+        "billing_address.*",
+        "shipping_methods.*",
+        "payment_collections.status",
+        "fulfillments.*",
+      ],
+      filters: { customer_id: customer.id },
+    });
+
+    // Format orders
+    const formattedOrders = orders.map((order: any) => ({
+      id: order.id,
+      display_id: order.display_id,
+      status: order.status,
+      email: order.email,
+      customer_id: order.customer_id,
+      currency_code: order.currency_code,
+      total: order.total,
+      subtotal: order.subtotal,
+      tax_total: order.tax_total,
+      shipping_total: order.shipping_total,
+      discount_total: order.discount_total,
+      payment_status: getPaymentStatus(order),
+      fulfillment_status: order.fulfillments?.length > 0 ? "fulfilled" : "not_fulfilled",
+      items: order.items?.map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        thumbnail: item.thumbnail,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total: item.total,
+        product: item.product ? {
+          id: item.product.id,
+          title: item.product.title,
+          thumbnail: item.product.thumbnail,
+        } : null,
+        variant: item.variant ? {
+          id: item.variant.id,
+          title: item.variant.title,
+          sku: item.variant.sku,
+        } : null,
+      })) || [],
+      shipping_address: order.shipping_address || null,
+      billing_address: order.billing_address || null,
+      shipping_methods: order.shipping_methods?.map((m: any) => ({
+        id: m.id,
+        name: m.name,
+        amount: m.amount,
+      })) || [],
+      created_at: order.created_at,
+      updated_at: order.updated_at,
+      canceled_at: order.canceled_at,
+    }));
+
+    res.status(200).json({
+      orders: formattedOrders,
+      count: formattedOrders.length,
+    });
+
+  } catch (error) {
+    console.error("Error fetching customer orders:", error);
+    res.status(500).json({
+      error: "Failed to fetch orders",
+      message: error.message,
+    });
+  }
+}
