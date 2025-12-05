@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
-import { IOrderModuleService, ICustomerModuleService } from "@medusajs/framework/types";
+import { IOrderModuleService, ICustomerModuleService, IAuthModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
 
 /**
@@ -30,32 +30,55 @@ export async function GET(
       });
     }
 
-    // Get the customer email from auth identity
-    const customerEmail = authContext.actor_id;
-
-    if (!customerEmail) {
-      return res.status(400).json({
-        error: "Customer email not found"
-      });
-    }
-
     // Resolve services
     const orderModuleService: IOrderModuleService = req.scope.resolve(Modules.ORDER);
     const customerModuleService: ICustomerModuleService = req.scope.resolve(Modules.CUSTOMER);
+    const authModuleService: IAuthModuleService = req.scope.resolve(Modules.AUTH);
     const query = req.scope.resolve("query");
 
-    // Find customer by email
-    const customers = await customerModuleService.listCustomers({
-      email: customerEmail
-    });
+    // Retrieve auth identity to get customer information
+    const authIdentity = await authModuleService.retrieveAuthIdentity(
+      authContext.auth_identity_id
+    ) as any;
 
-    if (!customers || customers.length === 0) {
+    if (!authIdentity) {
+      return res.status(404).json({
+        error: "User not found"
+      });
+    }
+
+    // Get customer_id from app_metadata or try to find by email
+    const customerId = authIdentity.app_metadata?.customer_id;
+    const customerEmail = authIdentity.entity_id;
+
+    let customer;
+
+    if (customerId) {
+      // Try to retrieve customer by ID first
+      try {
+        customer = await customerModuleService.retrieveCustomer(customerId);
+      } catch (error) {
+        // If customer not found by ID, try by email
+        console.warn("Customer not found by ID, trying by email:", error.message);
+      }
+    }
+
+    // If customer not found by ID, try to find by email
+    if (!customer && customerEmail) {
+      const customers = await customerModuleService.listCustomers({
+        email: customerEmail
+      });
+
+      if (customers && customers.length > 0) {
+        customer = customers[0];
+      }
+    }
+
+    if (!customer) {
       return res.status(404).json({
         error: "Customer not found"
       });
     }
-
-    const customer = customers[0];
 
     // Fetch the specific order
     const { data: orders } = await query.graph({
