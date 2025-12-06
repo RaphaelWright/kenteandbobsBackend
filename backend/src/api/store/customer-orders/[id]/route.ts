@@ -1,5 +1,4 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
-import { enrichPrice } from "../../../../utils/currency";
 
 /**
  * Helper to determine payment status from order data
@@ -98,106 +97,64 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
     const order = orders[0];
 
-    // Enrich order totals with display values
-    const currencyCode = order.currency_code || "ghs";
-    const enrichedTotal = enrichPrice(order.total || 0, currencyCode);
-    const enrichedSubtotal = enrichPrice(order.subtotal || 0, currencyCode);
-    const enrichedTaxTotal = enrichPrice(order.tax_total || 0, currencyCode);
-    const enrichedShippingTotal = enrichPrice(order.shipping_total || 0, currencyCode);
-    const enrichedDiscountTotal = enrichPrice(order.discount_total || 0, currencyCode);
-
-    // Format order response
+    // Format order response (raw database values)
     const formattedOrder = {
       id: order.id,
       display_id: order.display_id,
       status: order.status,
       email: order.email,
       customer_id: order.customer_id,
-      currency_code: currencyCode,
+      currency_code: order.currency_code,
       total: order.total,
-      total_display: enrichedTotal.display_amount,
-      total_formatted: enrichedTotal.formatted,
       subtotal: order.subtotal,
-      subtotal_display: enrichedSubtotal.display_amount,
-      subtotal_formatted: enrichedSubtotal.formatted,
       tax_total: order.tax_total,
-      tax_total_display: enrichedTaxTotal.display_amount,
-      tax_total_formatted: enrichedTaxTotal.formatted,
       shipping_total: order.shipping_total,
-      shipping_total_display: enrichedShippingTotal.display_amount,
-      shipping_total_formatted: enrichedShippingTotal.formatted,
       discount_total: order.discount_total,
-      discount_total_display: enrichedDiscountTotal.display_amount,
-      discount_total_formatted: enrichedDiscountTotal.formatted,
       metadata: order.metadata || {},
       payment_status: getPaymentStatus(order),
       fulfillment_status: order.fulfillments?.length > 0 ? "fulfilled" : "not_fulfilled",
-      items: order.items?.map((item: any) => {
-        const enrichedUnitPrice = enrichPrice(item.unit_price || 0, currencyCode);
-        const enrichedItemTotal = enrichPrice(item.total || 0, currencyCode);
-        
-        return {
-          id: item.id,
-          title: item.title,
-          subtitle: item.subtitle,
-          thumbnail: item.thumbnail,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          unit_price_display: enrichedUnitPrice.display_amount,
-          unit_price_formatted: enrichedUnitPrice.formatted,
-          total: item.total,
-          total_display: enrichedItemTotal.display_amount,
-          total_formatted: enrichedItemTotal.formatted,
-          product: item.product ? {
-            id: item.product.id,
-            title: item.product.title,
-            handle: item.product.handle,
-            thumbnail: item.product.thumbnail,
-            images: item.product.images?.map((img: any) => ({
-              id: img.id,
-              url: img.url,
-            })) || [],
-          } : null,
-          variant: item.variant ? {
-            id: item.variant.id,
-            title: item.variant.title,
-            sku: item.variant.sku,
-          } : null,
-        };
-      }) || [],
+      items: order.items?.map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        subtitle: item.subtitle,
+        thumbnail: item.thumbnail,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total: item.total,
+        product: item.product ? {
+          id: item.product.id,
+          title: item.product.title,
+          handle: item.product.handle,
+          thumbnail: item.product.thumbnail,
+          images: item.product.images?.map((img: any) => ({
+            id: img.id,
+            url: img.url,
+          })) || [],
+        } : null,
+        variant: item.variant ? {
+          id: item.variant.id,
+          title: item.variant.title,
+          sku: item.variant.sku,
+        } : null,
+      })) || [],
       shipping_address: order.shipping_address || null,
       billing_address: order.billing_address || null,
-      shipping_methods: order.shipping_methods?.map((m: any) => {
-        const enrichedAmount = enrichPrice(m.amount || 0, currencyCode);
-        return {
-          id: m.id,
-          name: m.name,
-          amount: m.amount,
-          amount_display: enrichedAmount.display_amount,
-          amount_formatted: enrichedAmount.formatted,
-        };
-      }) || [],
-      payment_collections: order.payment_collections?.map((pc: any) => {
-        const enrichedPcAmount = enrichPrice(pc.amount || 0, currencyCode);
-        return {
-          id: pc.id,
-          status: pc.status,
-          amount: pc.amount,
-          amount_display: enrichedPcAmount.display_amount,
-          amount_formatted: enrichedPcAmount.formatted,
-          payments: pc.payments?.map((p: any) => {
-            const enrichedPaymentAmount = enrichPrice(p.amount || 0, p.currency_code || currencyCode);
-            return {
-              id: p.id,
-              amount: p.amount,
-              amount_display: enrichedPaymentAmount.display_amount,
-              amount_formatted: enrichedPaymentAmount.formatted,
-              currency_code: p.currency_code,
-              provider_id: p.provider_id,
-            };
-          }) || [],
-        };
-      }) || [],
+      shipping_methods: order.shipping_methods?.map((m: any) => ({
+        id: m.id,
+        name: m.name,
+        amount: m.amount,
+      })) || [],
+      payment_collections: order.payment_collections?.map((pc: any) => ({
+        id: pc.id,
+        status: pc.status,
+        amount: pc.amount,
+        payments: pc.payments?.map((p: any) => ({
+          id: p.id,
+          amount: p.amount,
+          currency_code: p.currency_code,
+          provider_id: p.provider_id,
+        })) || [],
+      })) || [],
       fulfillments: order.fulfillments?.map((f: any) => ({
         id: f.id,
         created_at: f.created_at,
