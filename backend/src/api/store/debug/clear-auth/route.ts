@@ -33,7 +33,7 @@ export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
 
     // Delete auth identities
     for (const identity of authIdentities) {
-      await (authModuleService as any).deleteAuthIdentities(identity.id);
+      await (authModuleService as any).deleteAuthIdentities([identity.id]);
     }
 
     // Delete customers

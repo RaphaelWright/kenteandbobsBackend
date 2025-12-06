@@ -183,7 +183,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     const savedAppMetadata = authIdentity.app_metadata || {};
     
     console.log(`Deleting old auth identity for: ${email}`);
-    await authModuleService.deleteAuthIdentities(authIdentity.id);
+    await authModuleService.deleteAuthIdentities([authIdentity.id]);
     
     console.log(`Creating new auth identity with updated password for: ${email}`);
     const newAuthResult = await authModuleService.register("emailpass", {

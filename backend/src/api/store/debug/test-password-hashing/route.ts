@@ -100,7 +100,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
     // Cleanup: Delete test auth identity
     console.log("\n7. Cleaning up test auth identity...");
-    await authModuleService.deleteAuthIdentities(authIdentityId);
+    await authModuleService.deleteAuthIdentities([authIdentityId]);
     console.log("✓ Test auth identity deleted");
 
     // Generate report

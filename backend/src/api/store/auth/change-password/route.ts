@@ -179,7 +179,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     const savedAppMetadata = authIdentity.app_metadata || {};
     
     console.log(`Deleting old auth identity for: ${authIdentity.entity_id}`);
-    await authModuleService.deleteAuthIdentities(authContext.auth_identity_id);
+    await authModuleService.deleteAuthIdentities([authContext.auth_identity_id]);
     
     console.log(`Creating new auth identity with updated password for: ${authIdentity.entity_id}`);
     const newAuthResult = await authModuleService.register("emailpass", {

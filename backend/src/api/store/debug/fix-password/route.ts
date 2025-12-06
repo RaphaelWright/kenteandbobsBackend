@@ -61,7 +61,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     // Delete all existing auth identities for this email
     for (const identity of userIdentities) {
       console.log(`Deleting corrupted auth identity: ${identity.id}`);
-      await authModuleService.deleteAuthIdentities(identity.id);
+      await authModuleService.deleteAuthIdentities([identity.id]);
     }
 
     // Create new auth identity with properly hashed password
