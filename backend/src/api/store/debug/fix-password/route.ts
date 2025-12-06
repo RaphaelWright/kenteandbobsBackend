@@ -54,6 +54,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
     console.log(`Found ${userIdentities.length} auth identity(ies) for ${email}`);
 
+    // Save app_metadata from the first identity (contains customer_id linkage)
+    const savedAppMetadata = userIdentities[0].app_metadata || {};
+    console.log(`Saving app_metadata:`, savedAppMetadata);
+
     // Delete all existing auth identities for this email
     for (const identity of userIdentities) {
       console.log(`Deleting corrupted auth identity: ${identity.id}`);
@@ -74,6 +78,15 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         error: "Internal Server Error",
         message: "Failed to create new auth identity"
       });
+    }
+
+    // Restore app_metadata (including customer_id) to maintain linkage
+    if (Object.keys(savedAppMetadata).length > 0) {
+      console.log(`Restoring app_metadata for: ${email}`, savedAppMetadata);
+      await authModuleService.updateAuthIdentities({
+        id: authResult.authIdentity.id,
+        app_metadata: savedAppMetadata
+      } as any);
     }
 
     console.log(`Successfully fixed password for: ${email}`);

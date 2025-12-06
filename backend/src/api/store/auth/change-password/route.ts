@@ -127,14 +127,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       authContext.auth_identity_id
     ) as any;
 
-    console.log("Retrieved auth identity:", {
-      id: authIdentity?.id,
-      provider: authIdentity?.provider,
-      entity_id: authIdentity?.entity_id,
-      hasProviderMetadata: !!authIdentity?.provider_metadata,
-      providerMetadataKeys: authIdentity?.provider_metadata ? Object.keys(authIdentity.provider_metadata) : []
-    });
-
     if (!authIdentity) {
       return res.status(404).json({
         error: "Not Found",
@@ -183,6 +175,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     // Note: We need to delete and recreate the auth identity because updateAuthIdentities
     // does not properly hash the password. The register method does hash it correctly.
     
+    // Save app_metadata before deletion (contains customer_id linkage)
+    const savedAppMetadata = authIdentity.app_metadata || {};
+    
     console.log(`Deleting old auth identity for: ${authIdentity.entity_id}`);
     await authModuleService.deleteAuthIdentities(authContext.auth_identity_id);
     
@@ -202,11 +197,21 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       });
     }
 
+    // Restore app_metadata (including customer_id) to maintain linkage
+    if (Object.keys(savedAppMetadata).length > 0) {
+      console.log(`Restoring app_metadata for: ${authIdentity.entity_id}`, savedAppMetadata);
+      await authModuleService.updateAuthIdentities({
+        id: newAuthResult.authIdentity.id,
+        app_metadata: savedAppMetadata
+      } as any);
+    }
+
     // Update session with new auth identity ID
     req.session.auth_context = {
       ...authContext,
       auth_identity_id: newAuthResult.authIdentity.id,
-      actor_id: newAuthResult.authIdentity.entity_id
+      actor_id: newAuthResult.authIdentity.entity_id,
+      app_metadata: savedAppMetadata
     };
 
     // Log password change for security audit
@@ -239,4 +244,3 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     });
   }
 }
-

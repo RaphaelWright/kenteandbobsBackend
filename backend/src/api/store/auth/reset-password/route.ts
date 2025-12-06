@@ -178,6 +178,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     // Update password
     // Note: We need to delete and recreate the auth identity because updateAuthIdentities
     // does not properly hash the password. The register method does hash it correctly.
+    
+    // Save app_metadata before deletion (contains customer_id linkage)
+    const savedAppMetadata = authIdentity.app_metadata || {};
+    
     console.log(`Deleting old auth identity for: ${email}`);
     await authModuleService.deleteAuthIdentities(authIdentity.id);
     
@@ -192,6 +196,15 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     if (!newAuthResult?.success || !newAuthResult?.authIdentity) {
       console.error("Failed to create new auth identity after password reset");
       throw new Error("Failed to update password");
+    }
+
+    // Restore app_metadata (including customer_id) to maintain linkage
+    if (Object.keys(savedAppMetadata).length > 0) {
+      console.log(`Restoring app_metadata for: ${email}`, savedAppMetadata);
+      await authModuleService.updateAuthIdentities({
+        id: newAuthResult.authIdentity.id,
+        app_metadata: savedAppMetadata
+      } as any);
     }
 
     // Clear reset token from customer metadata (single-use token)
