@@ -171,12 +171,25 @@ export async function POST(
       });
     }
 
+    // TEMPORARY FIX: Check if prices in database are in cedis format
+    // If cart total seems suspiciously low (< 1000), multiply by 100
+    // This handles the case where database has cedis instead of pesewas
+    let paystackAmount = cartTotal;
+    const likelyInCedis = cartTotal > 0 && cartTotal < 10000 && cart.currency_code?.toLowerCase() === 'ghs';
+    
+    if (likelyInCedis) {
+      console.warn("⚠️ Cart total appears to be in cedis format, converting to pesewas for Paystack");
+      paystackAmount = cartTotal * 100;
+    }
+
     console.log("Paystack payment amount:", {
       cart_id: cartId,
-      amount: cartTotal,
-      amount_in_cedis: (cartTotal / 100).toFixed(2),
+      original_amount: cartTotal,
+      paystack_amount: paystackAmount,
+      amount_in_cedis: (paystackAmount / 100).toFixed(2),
       currency: cart.currency_code,
       items_count: cart.items.length,
+      converted: likelyInCedis,
     });
 
     // Get request data
@@ -193,7 +206,7 @@ export async function POST(
     // Prepare Paystack initialization data
     const paystackData = {
       email: customer.email,
-      amount: cartTotal, // Amount in smallest currency unit (pesewas/kobo)
+      amount: paystackAmount, // Amount in smallest currency unit (pesewas/kobo)
       currency: cart.currency_code?.toUpperCase() || "GHS",
       channels,
       callback_url: finalCallbackUrl,
@@ -238,8 +251,10 @@ export async function POST(
         authorization_url: paystackResult.data.authorization_url,
         access_code: paystackResult.data.access_code,
         reference: paystackResult.data.reference,
-        amount: cartTotal,
+        amount: paystackAmount,
+        original_cart_amount: cartTotal,
         currency: cart.currency_code?.toLowerCase() || "ghs",
+        converted_for_payment: likelyInCedis,
       },
     });
   } catch (error) {
