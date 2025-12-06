@@ -1,6 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
 import { ICustomerModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
+import { enrichPrice } from "../../../utils/currency";
 
 /**
  * Helper to determine payment status from order data
@@ -120,50 +121,85 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       filters: { customer_id: customer.id },
     });
 
-    // Format orders
-    const formattedOrders = orders.map((order: any) => ({
-      id: order.id,
-      display_id: order.display_id,
-      status: order.status,
-      email: order.email,
-      customer_id: order.customer_id,
-      currency_code: order.currency_code,
-      total: order.total,
-      subtotal: order.subtotal,
-      tax_total: order.tax_total,
-      shipping_total: order.shipping_total,
-      discount_total: order.discount_total,
-      payment_status: getPaymentStatus(order),
-      fulfillment_status: order.fulfillments?.length > 0 ? "fulfilled" : "not_fulfilled",
-      items: order.items?.map((item: any) => ({
-        id: item.id,
-        title: item.title,
-        thumbnail: item.thumbnail,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total: item.total,
-        product: item.product ? {
-          id: item.product.id,
-          title: item.product.title,
-          thumbnail: item.product.thumbnail,
-        } : null,
-        variant: item.variant ? {
-          id: item.variant.id,
-          title: item.variant.title,
-          sku: item.variant.sku,
-        } : null,
-      })) || [],
-      shipping_address: order.shipping_address || null,
-      billing_address: order.billing_address || null,
-      shipping_methods: order.shipping_methods?.map((m: any) => ({
-        id: m.id,
-        name: m.name,
-        amount: m.amount,
-      })) || [],
-      created_at: order.created_at,
-      updated_at: order.updated_at,
-      canceled_at: order.canceled_at,
-    }));
+    // Format orders with enriched pricing
+    const formattedOrders = orders.map((order: any) => {
+      const currencyCode = order.currency_code || 'ghs';
+      
+      // Enrich order totals
+      const enrichedTotal = enrichPrice(order.total || 0, currencyCode);
+      const enrichedSubtotal = enrichPrice(order.subtotal || 0, currencyCode);
+      const enrichedTaxTotal = enrichPrice(order.tax_total || 0, currencyCode);
+      const enrichedShippingTotal = enrichPrice(order.shipping_total || 0, currencyCode);
+      const enrichedDiscountTotal = enrichPrice(order.discount_total || 0, currencyCode);
+      
+      return {
+        id: order.id,
+        display_id: order.display_id,
+        status: order.status,
+        email: order.email,
+        customer_id: order.customer_id,
+        currency_code: currencyCode,
+        total: order.total,
+        total_display: enrichedTotal.display_amount,
+        total_formatted: enrichedTotal.formatted,
+        subtotal: order.subtotal,
+        subtotal_display: enrichedSubtotal.display_amount,
+        subtotal_formatted: enrichedSubtotal.formatted,
+        tax_total: order.tax_total,
+        tax_total_display: enrichedTaxTotal.display_amount,
+        tax_total_formatted: enrichedTaxTotal.formatted,
+        shipping_total: order.shipping_total,
+        shipping_total_display: enrichedShippingTotal.display_amount,
+        shipping_total_formatted: enrichedShippingTotal.formatted,
+        discount_total: order.discount_total,
+        discount_total_display: enrichedDiscountTotal.display_amount,
+        discount_total_formatted: enrichedDiscountTotal.formatted,
+        payment_status: getPaymentStatus(order),
+        fulfillment_status: order.fulfillments?.length > 0 ? "fulfilled" : "not_fulfilled",
+        items: order.items?.map((item: any) => {
+          const enrichedUnitPrice = enrichPrice(item.unit_price || 0, currencyCode);
+          const enrichedItemTotal = enrichPrice(item.total || 0, currencyCode);
+          
+          return {
+            id: item.id,
+            title: item.title,
+            thumbnail: item.thumbnail,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            unit_price_display: enrichedUnitPrice.display_amount,
+            unit_price_formatted: enrichedUnitPrice.formatted,
+            total: item.total,
+            total_display: enrichedItemTotal.display_amount,
+            total_formatted: enrichedItemTotal.formatted,
+            product: item.product ? {
+              id: item.product.id,
+              title: item.product.title,
+              thumbnail: item.product.thumbnail,
+            } : null,
+            variant: item.variant ? {
+              id: item.variant.id,
+              title: item.variant.title,
+              sku: item.variant.sku,
+            } : null,
+          };
+        }) || [],
+        shipping_address: order.shipping_address || null,
+        billing_address: order.billing_address || null,
+        shipping_methods: order.shipping_methods?.map((m: any) => {
+          const enrichedAmount = enrichPrice(m.amount || 0, currencyCode);
+          return {
+            id: m.id,
+            name: m.name,
+            amount: m.amount,
+            amount_display: enrichedAmount.display_amount,
+            amount_formatted: enrichedAmount.formatted,
+          };
+        }) || [],
+        created_at: order.created_at,
+        updated_at: order.updated_at,
+        canceled_at: order.canceled_at,
+      };
+    });
 
     res.status(200).json({
       orders: formattedOrders,
