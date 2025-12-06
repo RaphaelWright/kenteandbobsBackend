@@ -176,13 +176,23 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
 
     // Update password
-    // The updateAuthIdentities expects the ID to be part of the data object
-    await authModuleService.updateAuthIdentities({
-      id: authIdentity.id,
-      provider_metadata: {
-        password: new_password,
-      },
-    } as any);
+    // Note: We need to delete and recreate the auth identity because updateAuthIdentities
+    // does not properly hash the password. The register method does hash it correctly.
+    console.log(`Deleting old auth identity for: ${email}`);
+    await authModuleService.deleteAuthIdentities(authIdentity.id);
+    
+    console.log(`Creating new auth identity with updated password for: ${email}`);
+    const newAuthResult = await authModuleService.register("emailpass", {
+      body: {
+        email,
+        password: new_password
+      }
+    } as any) as any;
+
+    if (!newAuthResult?.success || !newAuthResult?.authIdentity) {
+      console.error("Failed to create new auth identity after password reset");
+      throw new Error("Failed to update password");
+    }
 
     // Clear reset token from customer metadata (single-use token)
     await customerModuleService.updateCustomers(customer.id, {

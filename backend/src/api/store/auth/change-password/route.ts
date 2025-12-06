@@ -127,6 +127,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       authContext.auth_identity_id
     ) as any;
 
+    console.log("Retrieved auth identity:", {
+      id: authIdentity?.id,
+      provider: authIdentity?.provider,
+      entity_id: authIdentity?.entity_id,
+      hasProviderMetadata: !!authIdentity?.provider_metadata,
+      providerMetadataKeys: authIdentity?.provider_metadata ? Object.keys(authIdentity.provider_metadata) : []
+    });
+
     if (!authIdentity) {
       return res.status(404).json({
         error: "Not Found",
@@ -172,15 +180,37 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
 
     // Update password
-    await authModuleService.updateAuthIdentities({
-      id: authContext.auth_identity_id,
-      provider_metadata: {
+    // Note: We need to delete and recreate the auth identity because updateAuthIdentities
+    // does not properly hash the password. The register method does hash it correctly.
+    
+    console.log(`Deleting old auth identity for: ${authIdentity.entity_id}`);
+    await authModuleService.deleteAuthIdentities(authContext.auth_identity_id);
+    
+    console.log(`Creating new auth identity with updated password for: ${authIdentity.entity_id}`);
+    const newAuthResult = await authModuleService.register("emailpass", {
+      body: {
+        email: authIdentity.entity_id,
         password: new_password
       }
-    } as any);
+    } as any) as any;
+
+    if (!newAuthResult?.success || !newAuthResult?.authIdentity) {
+      console.error("Failed to create new auth identity after password change");
+      return res.status(500).json({
+        error: "Internal Server Error",
+        message: "Failed to update password. Please try again."
+      });
+    }
+
+    // Update session with new auth identity ID
+    req.session.auth_context = {
+      ...authContext,
+      auth_identity_id: newAuthResult.authIdentity.id,
+      actor_id: newAuthResult.authIdentity.entity_id
+    };
 
     // Log password change for security audit
-    console.log(`Password changed for user: ${authIdentity.entity_id} at ${new Date().toISOString()}`);
+    console.log(`Password changed successfully for user: ${authIdentity.entity_id} at ${new Date().toISOString()}`);
 
     // Success response
     res.status(200).json({
