@@ -18,17 +18,20 @@
  * @returns Amount in Pesewas (e.g., 130) - always an integer
  */
 export function cedisToPesewas(cedis: number): number {
-  if (typeof cedis !== 'number' || isNaN(cedis)) {
+  // Convert to number if needed (handles string numbers and floating point precision)
+  const amount = typeof cedis === 'string' ? parseFloat(cedis as any) : cedis;
+  
+  if (typeof amount !== 'number' || isNaN(amount) || !isFinite(amount)) {
     throw new Error(`Invalid cedis amount: ${cedis}. Must be a valid number.`);
   }
   
-  if (cedis < 0) {
+  if (amount < 0) {
     throw new Error(`Invalid cedis amount: ${cedis}. Amount cannot be negative.`);
   }
   
   // Multiply by 100 and round to avoid floating point issues
   // Ensure we always return a proper integer
-  return Math.round(cedis * 100);
+  return Math.round(amount * 100);
 }
 
 /**
@@ -37,16 +40,19 @@ export function cedisToPesewas(cedis: number): number {
  * @returns Amount in Ghana Cedis (e.g., 1.30)
  */
 export function pesewasToCedis(pesewas: number): number {
-  if (typeof pesewas !== 'number' || isNaN(pesewas)) {
+  // Convert to number if needed (handles string numbers and floating point precision)
+  const amount = typeof pesewas === 'string' ? parseFloat(pesewas as any) : pesewas;
+  
+  if (typeof amount !== 'number' || isNaN(amount) || !isFinite(amount)) {
     throw new Error(`Invalid pesewas amount: ${pesewas}. Must be a valid number.`);
   }
   
-  if (pesewas < 0) {
+  if (amount < 0) {
     throw new Error(`Invalid pesewas amount: ${pesewas}. Amount cannot be negative.`);
   }
   
   // Divide by 100
-  return pesewas / 100;
+  return amount / 100;
 }
 
 /**
@@ -95,25 +101,15 @@ export function isValidPesewasAmount(amount: number): boolean {
  * @returns Amount in smallest currency unit (pesewas, cents, etc.)
  */
 export function toSmallestCurrencyUnit(amount: number, currencyCode: string): number {
-  const code = currencyCode.toLowerCase();
+  // Ensure amount is a number (handle decimal precision)
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : Number(amount);
   
-  // Ghana Cedis -> Pesewas
-  if (code === 'ghs') {
-    return cedisToPesewas(amount);
+  if (isNaN(numAmount) || !isFinite(numAmount)) {
+    return 0; // Gracefully handle invalid amounts
   }
   
-  // USD -> Cents
-  if (code === 'usd') {
-    return Math.round(amount * 100);
-  }
-  
-  // EUR -> Cents
-  if (code === 'eur') {
-    return Math.round(amount * 100);
-  }
-  
-  // Default: assume 100 subunits per unit (covers most currencies)
-  return Math.round(amount * 100);
+  // Multiply by 100 and round to get smallest unit (works for all currencies)
+  return Math.round(numAmount * 100);
 }
 
 /**
@@ -123,25 +119,32 @@ export function toSmallestCurrencyUnit(amount: number, currencyCode: string): nu
  * @returns Amount in major currency unit (cedis, dollars, euros)
  */
 export function fromSmallestCurrencyUnit(amount: number, currencyCode: string): number {
+  // Ensure amount is a number (handle decimal precision from database)
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : Number(amount);
+  
+  if (isNaN(numAmount) || !isFinite(numAmount)) {
+    return 0; // Gracefully handle invalid amounts
+  }
+  
   const code = currencyCode.toLowerCase();
   
   // Pesewas -> Ghana Cedis
   if (code === 'ghs') {
-    return pesewasToCedis(amount);
+    return numAmount / 100;
   }
   
   // Cents -> USD
   if (code === 'usd') {
-    return amount / 100;
+    return numAmount / 100;
   }
   
   // Cents -> EUR
   if (code === 'eur') {
-    return amount / 100;
+    return numAmount / 100;
   }
   
   // Default: assume 100 subunits per unit (covers most currencies)
-  return amount / 100;
+  return numAmount / 100;
 }
 
 /**
