@@ -125,15 +125,28 @@ export async function GET(
     }
 
     // Calculate cart total for verification
-    const cartTotal = cart.items.reduce((total: number, item: any) => {
+    let cartTotal = cart.items.reduce((total: number, item: any) => {
       return total + (item.unit_price * item.quantity);
     }, 0);
+
+    // TEMPORARY FIX: Handle case where database has prices in cedis format
+    // If cart total seems suspiciously low (< 10000), it's likely in cedis - convert to pesewas
+    const likelyInCedis = cartTotal > 0 && cartTotal < 10000 && cart.currency_code?.toLowerCase() === 'ghs';
+    
+    if (likelyInCedis) {
+      console.warn("⚠️ Cart total appears to be in cedis format, converting to pesewas for verification");
+      cartTotal = cartTotal * 100;
+    }
 
     // Verify amount matches
     if (paymentData.amount !== cartTotal) {
       console.error("Amount mismatch:", {
         paystack_amount: paymentData.amount,
-        cart_total: cartTotal,
+        cart_total_original: cart.items.reduce((total: number, item: any) => {
+          return total + (item.unit_price * item.quantity);
+        }, 0),
+        cart_total_converted: cartTotal,
+        conversion_applied: likelyInCedis,
       });
       return res.status(400).json({
         error: "Amount mismatch",
@@ -141,9 +154,16 @@ export async function GET(
         details: {
           paid_amount: paymentData.amount,
           cart_total: cartTotal,
+          conversion_applied: likelyInCedis,
         },
       });
     }
+
+    console.log("✅ Payment amount verified:", {
+      paystack_amount: paymentData.amount,
+      cart_total: cartTotal,
+      conversion_applied: likelyInCedis,
+    });
 
     // Verify customer email matches
     if (paymentData.customer?.email !== customer.email) {
