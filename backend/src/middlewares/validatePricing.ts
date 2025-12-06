@@ -257,7 +257,9 @@ function convertPriceData(data: any, forceConvert: boolean = false): void {
     
     if (shouldConvert) {
       const oldAmount = data.amount;
-      data.amount = toSmallestCurrencyUnit(data.amount, currencyCode);
+      const converted = toSmallestCurrencyUnit(data.amount, currencyCode);
+      // Ensure we store an integer (round to handle any floating point issues)
+      data.amount = Math.round(converted);
       
       // Log conversion for debugging (only in development)
       if (process.env.NODE_ENV === 'development') {

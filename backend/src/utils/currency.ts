@@ -15,7 +15,7 @@
 /**
  * Convert Ghana Cedis to Pesewas
  * @param cedis Amount in Ghana Cedis (e.g., 1.30)
- * @returns Amount in Pesewas (e.g., 130)
+ * @returns Amount in Pesewas (e.g., 130) - always an integer
  */
 export function cedisToPesewas(cedis: number): number {
   if (typeof cedis !== 'number' || isNaN(cedis)) {
@@ -27,6 +27,7 @@ export function cedisToPesewas(cedis: number): number {
   }
   
   // Multiply by 100 and round to avoid floating point issues
+  // Ensure we always return a proper integer
   return Math.round(cedis * 100);
 }
 
@@ -77,10 +78,14 @@ export function formatCedis(cedis: number, includeCurrency: boolean = true): str
  * @returns True if valid pesewas amount, false otherwise
  */
 export function isValidPesewasAmount(amount: number): boolean {
-  return typeof amount === 'number' && 
-         !isNaN(amount) && 
-         Number.isInteger(amount) && 
-         amount >= 0;
+  if (typeof amount !== 'number' || isNaN(amount) || amount < 0) {
+    return false;
+  }
+  
+  // Check if amount is effectively an integer (handles floating point precision issues)
+  // Round to handle cases like 4000.0000000000000000
+  const rounded = Math.round(amount);
+  return Math.abs(amount - rounded) < 0.0001; // Allow tiny floating point errors
 }
 
 /**
