@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
-import { cedisToPesewas, formatPesewasAsCedis } from "../../../../../utils/currency";
+import { cedisToPesewas, formatPesewasAsCedis } from "utils/currency";
 
 /**
  * POST /admin/custom/convert-prices
