@@ -136,6 +136,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
     // Verify current password by attempting authentication
     try {
+      console.log(`Verifying password for user: ${authIdentity.entity_id}`);
+      
       const authResult = await authModuleService.authenticate("emailpass", {
         body: {
           email: authIdentity.entity_id,
@@ -143,7 +145,13 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         }
       } as any) as any;
 
+      console.log("Password verification result:", {
+        success: authResult?.success,
+        hasAuthIdentity: !!authResult?.authIdentity
+      });
+
       if (!authResult?.success) {
+        console.log("Password verification failed: incorrect password");
         return res.status(401).json({
           error: "Unauthorized",
           message: "Current password is incorrect",
@@ -152,6 +160,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       }
     } catch (authError) {
       console.error("Authentication verification failed:", authError);
+      console.error("Error details:", {
+        message: authError?.message,
+        stack: authError?.stack
+      });
       return res.status(401).json({
         error: "Unauthorized",
         message: "Current password is incorrect",
@@ -160,14 +172,12 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
 
     // Update password
-    await authModuleService.updateAuthIdentities(
-      authContext.auth_identity_id,
-      {
-        provider_metadata: {
-          password: new_password
-        }
-      } as any
-    );
+    await authModuleService.updateAuthIdentities({
+      id: authContext.auth_identity_id,
+      provider_metadata: {
+        password: new_password
+      }
+    } as any);
 
     // Log password change for security audit
     console.log(`Password changed for user: ${authIdentity.entity_id} at ${new Date().toISOString()}`);
