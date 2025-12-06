@@ -171,24 +171,12 @@ export async function POST(
       });
     }
 
-    // ⚠️ TEMPORARY HACK: Multiply by 100 to convert prices to correct pesewas
-    // WARNING: This creates inconsistency between cart display and payment amount!
-    // TODO: Fix product prices in database instead of using this workaround
-    const PRICE_MULTIPLIER = parseInt(process.env.PAYSTACK_PRICE_MULTIPLIER || "1");
-    if (PRICE_MULTIPLIER !== 1) {
-      console.warn("⚠️ WARNING: Using price multiplier hack. Cart shows different amount than payment!");
-      console.log("Cart amount:", cartTotal, "pesewas (GH₵", (cartTotal / 100).toFixed(2), ")");
-      cartTotal = cartTotal * PRICE_MULTIPLIER;
-      console.log("Paystack amount:", cartTotal, "pesewas (GH₵", (cartTotal / 100).toFixed(2), ")");
-    }
-
     console.log("Paystack payment amount:", {
       cart_id: cartId,
       amount: cartTotal,
+      amount_in_cedis: (cartTotal / 100).toFixed(2),
       currency: cart.currency_code,
       items_count: cart.items.length,
-      using_cart_total: cart.total > 0,
-      multiplier_applied: PRICE_MULTIPLIER,
     });
 
     // Get request data

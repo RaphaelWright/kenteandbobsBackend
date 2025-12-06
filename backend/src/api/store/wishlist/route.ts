@@ -2,6 +2,7 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
 import { IAuthModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
 import WishlistModuleService from "../../../modules/wishlist/service";
+import { enrichPrice } from "../../../utils/currency";
 
 /**
  * GET /store/wishlist
@@ -107,6 +108,10 @@ export async function GET(
       const maxPrice = prices?.length ? Math.max(...prices) : null;
       const currency = product.variants?.[0]?.prices?.[0]?.currency_code || "ghs";
 
+      // Enrich price with display values
+      const enrichedMinPrice = minPrice ? enrichPrice(minPrice, currency) : null;
+      const enrichedMaxPrice = maxPrice ? enrichPrice(maxPrice, currency) : null;
+
       // Calculate total quantity based on variant count
       // Each variant represents one available unit
       const totalQuantity = product.variants?.length || 0;
@@ -128,8 +133,12 @@ export async function GET(
             url: img.url,
           })) || [],
           price: {
-            min: minPrice,
-            max: maxPrice,
+            min: enrichedMinPrice?.amount || minPrice,
+            max: enrichedMaxPrice?.amount || maxPrice,
+            min_display: enrichedMinPrice?.display_amount || null,
+            max_display: enrichedMaxPrice?.display_amount || null,
+            min_formatted: enrichedMinPrice?.formatted || null,
+            max_formatted: enrichedMaxPrice?.formatted || null,
             currency: currency,
           },
           quantity: totalQuantity,
@@ -140,6 +149,12 @@ export async function GET(
           title: variant.title,
           sku: variant.sku,
           price: variant.prices?.[0]?.amount || null,
+          price_display: variant.prices?.[0]?.amount 
+            ? enrichPrice(variant.prices[0].amount, variant.prices[0].currency_code || "ghs").display_amount 
+            : null,
+          price_formatted: variant.prices?.[0]?.amount 
+            ? enrichPrice(variant.prices[0].amount, variant.prices[0].currency_code || "ghs").formatted 
+            : null,
           currency: variant.prices?.[0]?.currency_code || "ghs",
           quantity: 1, // Each variant represents one unit
         } : null,

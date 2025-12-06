@@ -2,6 +2,8 @@
  * Shared helper functions for cart endpoints
  */
 
+import { enrichPrice } from "../../../utils/currency";
+
 /**
  * Format cart response with product details
  */
@@ -57,14 +59,26 @@ export async function formatCartResponse(cart: any, query: any) {
     }
   }
 
+  const currencyCode = cart.currency_code || "ghs";
+  
+  // Enrich cart totals with display values
+  const enrichedSubtotal = enrichPrice(cart.subtotal || 0, currencyCode);
+  const enrichedTaxTotal = enrichPrice(cart.tax_total || 0, currencyCode);
+  const enrichedShippingTotal = enrichPrice(cart.shipping_total || 0, currencyCode);
+  const enrichedDiscountTotal = enrichPrice(cart.discount_total || 0, currencyCode);
+  const enrichedTotal = enrichPrice(cart.total || 0, currencyCode);
+
   return {
     id: cart.id,
     customer_id: cart.customer_id,
     email: cart.email,
-    currency_code: cart.currency_code,
+    currency_code: currencyCode,
     region_id: cart.region_id,
     items: cart.items?.map((item: any) => {
       const productInfo = productsMap[item.variant_id] || {};
+      const enrichedUnitPrice = enrichPrice(item.unit_price || 0, currencyCode);
+      const enrichedItemTotal = enrichPrice(item.total || 0, currencyCode);
+      
       return {
         id: item.id,
         title: item.title,
@@ -72,7 +86,11 @@ export async function formatCartResponse(cart: any, query: any) {
         thumbnail: item.thumbnail,
         quantity: item.quantity,
         unit_price: item.unit_price,
+        unit_price_display: enrichedUnitPrice.display_amount,
+        unit_price_formatted: enrichedUnitPrice.formatted,
         total: item.total,
+        total_display: enrichedItemTotal.display_amount,
+        total_formatted: enrichedItemTotal.formatted,
         product_id: item.product_id,
         variant_id: item.variant_id,
         product: productInfo.product || null,
@@ -80,10 +98,20 @@ export async function formatCartResponse(cart: any, query: any) {
       };
     }) || [],
     subtotal: cart.subtotal || 0,
+    subtotal_display: enrichedSubtotal.display_amount,
+    subtotal_formatted: enrichedSubtotal.formatted,
     tax_total: cart.tax_total || 0,
+    tax_total_display: enrichedTaxTotal.display_amount,
+    tax_total_formatted: enrichedTaxTotal.formatted,
     shipping_total: cart.shipping_total || 0,
+    shipping_total_display: enrichedShippingTotal.display_amount,
+    shipping_total_formatted: enrichedShippingTotal.formatted,
     discount_total: cart.discount_total || 0,
+    discount_total_display: enrichedDiscountTotal.display_amount,
+    discount_total_formatted: enrichedDiscountTotal.formatted,
     total: cart.total || 0,
+    total_display: enrichedTotal.display_amount,
+    total_formatted: enrichedTotal.formatted,
     shipping_address: cart.shipping_address || null,
     billing_address: cart.billing_address || null,
     created_at: cart.created_at,

@@ -1,5 +1,6 @@
 import { authenticate as medusaAuthenticate } from "@medusajs/framework/http";
 import { defineMiddlewares } from "@medusajs/medusa";
+import { convertCedisToPesewas } from "../middlewares/validatePricing";
 
 /**
  * Authentication middleware to protect routes
@@ -73,6 +74,12 @@ export default defineMiddlewares({
     {
       matcher: "/store/cart/complete",
       middlewares: [authenticate]
+    },
+    // Auto-convert cedis to pesewas for all admin routes that handle products/pricing
+    // This allows admin panel to submit prices in cedis (e.g., 130.00) and they'll be converted to pesewas (13000)
+    {
+      matcher: "/admin/*",
+      middlewares: [convertCedisToPesewas()]
     }
   ]
 });

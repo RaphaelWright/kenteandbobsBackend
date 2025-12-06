@@ -407,15 +407,15 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 130,
+                  amount: 13000, // GH₵ 130.00 in pesewas
                   currency_code: "ghs",
                 },
                 {
-                  amount: 10,
+                  amount: 1000, // $10.00 in cents
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 1500, // $15.00 in cents
                   currency_code: "usd",
                 },
               ],
@@ -429,15 +429,15 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 130,
+                  amount: 13000, // GH₵ 130.00 in pesewas
                   currency_code: "ghs",
                 },
                 {
-                  amount: 10,
+                  amount: 1000, // $10.00 in cents
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 1500, // $15.00 in cents
                   currency_code: "usd",
                 },
               ],
@@ -451,15 +451,15 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 130,
+                  amount: 13000, // GH₵ 130.00 in pesewas
                   currency_code: "ghs",
                 },
                 {
-                  amount: 10,
+                  amount: 1000, // $10.00 in cents
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 1500, // $15.00 in cents
                   currency_code: "usd",
                 },
               ],
@@ -473,15 +473,15 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 130,
+                  amount: 13000, // GH₵ 130.00 in pesewas
                   currency_code: "ghs",
                 },
                 {
-                  amount: 10,
+                  amount: 1000, // $10.00 in cents
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 1500, // $15.00 in cents
                   currency_code: "usd",
                 },
               ],
@@ -495,15 +495,15 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 130,
+                  amount: 13000, // GH₵ 130.00 in pesewas
                   currency_code: "ghs",
                 },
                 {
-                  amount: 10,
+                  amount: 1000, // $10.00 in cents
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 1500, // $15.00 in cents
                   currency_code: "usd",
                 },
               ],
@@ -517,15 +517,15 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 130,
+                  amount: 13000, // GH₵ 130.00 in pesewas
                   currency_code: "ghs",
                 },
                 {
-                  amount: 10,
+                  amount: 1000, // $10.00 in cents
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 1500, // $15.00 in cents
                   currency_code: "usd",
                 },
               ],
@@ -539,15 +539,15 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 130,
+                  amount: 13000, // GH₵ 130.00 in pesewas
                   currency_code: "ghs",
                 },
                 {
-                  amount: 10,
+                  amount: 1000, // $10.00 in cents
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 1500, // $15.00 in cents
                   currency_code: "usd",
                 },
               ],
@@ -561,15 +561,15 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 130,
+                  amount: 13000, // GH₵ 130.00 in pesewas
                   currency_code: "ghs",
                 },
                 {
-                  amount: 10,
+                  amount: 1000, // $10.00 in cents
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 1500, // $15.00 in cents
                   currency_code: "usd",
                 },
               ],
@@ -615,15 +615,15 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 130,
+                  amount: 13000, // GH₵ 130.00 in pesewas
                   currency_code: "ghs",
                 },
                 {
-                  amount: 10,
+                  amount: 1000, // $10.00 in cents
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 1500, // $15.00 in cents
                   currency_code: "usd",
                 },
               ],
@@ -636,15 +636,15 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 130,
+                  amount: 13000, // GH₵ 130.00 in pesewas
                   currency_code: "ghs",
                 },
                 {
-                  amount: 10,
+                  amount: 1000, // $10.00 in cents
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 1500, // $15.00 in cents
                   currency_code: "usd",
                 },
               ],
@@ -657,15 +657,15 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 130,
+                  amount: 13000, // GH₵ 130.00 in pesewas
                   currency_code: "ghs",
                 },
                 {
-                  amount: 10,
+                  amount: 1000, // $10.00 in cents
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 1500, // $15.00 in cents
                   currency_code: "usd",
                 },
               ],
@@ -678,15 +678,15 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 130,
+                  amount: 13000, // GH₵ 130.00 in pesewas
                   currency_code: "ghs",
                 },
                 {
-                  amount: 10,
+                  amount: 1000, // $10.00 in cents
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 1500, // $15.00 in cents
                   currency_code: "usd",
                 },
               ],
@@ -732,15 +732,15 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 130,
+                  amount: 13000, // GH₵ 130.00 in pesewas
                   currency_code: "ghs",
                 },
                 {
-                  amount: 10,
+                  amount: 1000, // $10.00 in cents
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 1500, // $15.00 in cents
                   currency_code: "usd",
                 },
               ],
@@ -753,15 +753,15 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 130,
+                  amount: 13000, // GH₵ 130.00 in pesewas
                   currency_code: "ghs",
                 },
                 {
-                  amount: 10,
+                  amount: 1000, // $10.00 in cents
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 1500, // $15.00 in cents
                   currency_code: "usd",
                 },
               ],
@@ -774,15 +774,15 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 130,
+                  amount: 13000, // GH₵ 130.00 in pesewas
                   currency_code: "ghs",
                 },
                 {
-                  amount: 10,
+                  amount: 1000, // $10.00 in cents
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 1500, // $15.00 in cents
                   currency_code: "usd",
                 },
               ],
@@ -795,15 +795,15 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 130,
+                  amount: 13000, // GH₵ 130.00 in pesewas
                   currency_code: "ghs",
                 },
                 {
-                  amount: 10,
+                  amount: 1000, // $10.00 in cents
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 1500, // $15.00 in cents
                   currency_code: "usd",
                 },
               ],
@@ -849,15 +849,15 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 130,
+                  amount: 13000, // GH₵ 130.00 in pesewas
                   currency_code: "ghs",
                 },
                 {
-                  amount: 10,
+                  amount: 1000, // $10.00 in cents
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 1500, // $15.00 in cents
                   currency_code: "usd",
                 },
               ],
@@ -870,15 +870,15 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 130,
+                  amount: 13000, // GH₵ 130.00 in pesewas
                   currency_code: "ghs",
                 },
                 {
-                  amount: 10,
+                  amount: 1000, // $10.00 in cents
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 1500, // $15.00 in cents
                   currency_code: "usd",
                 },
               ],
@@ -891,15 +891,15 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 130,
+                  amount: 13000, // GH₵ 130.00 in pesewas
                   currency_code: "ghs",
                 },
                 {
-                  amount: 10,
+                  amount: 1000, // $10.00 in cents
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 1500, // $15.00 in cents
                   currency_code: "usd",
                 },
               ],
@@ -912,15 +912,15 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 130,
+                  amount: 13000, // GH₵ 130.00 in pesewas
                   currency_code: "ghs",
                 },
                 {
-                  amount: 10,
+                  amount: 1000, // $10.00 in cents
                   currency_code: "eur",
                 },
                 {
-                  amount: 15,
+                  amount: 1500, // $15.00 in cents
                   currency_code: "usd",
                 },
               ],

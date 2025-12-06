@@ -1,6 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
 import ReviewModuleService from "../../../../modules/review/service";
 import WishlistModuleService from "../../../../modules/wishlist/service";
+import { enrichPrice } from "../../../../utils/currency";
 
 /**
  * GET /store/products/:id
@@ -114,6 +115,10 @@ export async function GET(
     const maxPrice = prices?.length ? Math.max(...prices) : null;
     const currency = product.variants?.[0]?.prices?.[0]?.currency_code || "ghs";
 
+    // Enrich price with display values
+    const enrichedMinPrice = minPrice ? enrichPrice(minPrice, currency) : null;
+    const enrichedMaxPrice = maxPrice ? enrichPrice(maxPrice, currency) : null;
+
     const formattedProduct = {
       id: product.id,
       name: product.title,
@@ -127,8 +132,12 @@ export async function GET(
         url: img.url,
       })) || [],
       price: {
-        min: minPrice,
-        max: maxPrice,
+        min: enrichedMinPrice?.amount || minPrice,
+        max: enrichedMaxPrice?.amount || maxPrice,
+        min_display: enrichedMinPrice?.display_amount || null,
+        max_display: enrichedMaxPrice?.display_amount || null,
+        min_formatted: enrichedMinPrice?.formatted || null,
+        max_formatted: enrichedMaxPrice?.formatted || null,
         currency: currency,
       },
       categories: product.categories?.map((cat: any) => ({
@@ -149,12 +158,18 @@ export async function GET(
       quantity: totalQuantity,
       variants: product.variants?.map((variant: any) => {
         const variantPrice = variant.prices?.[0];
+        const enrichedVariantPrice = variantPrice?.amount 
+          ? enrichPrice(variantPrice.amount, variantPrice.currency_code || "ghs")
+          : null;
+        
         return {
           id: variant.id,
           title: variant.title,
           sku: variant.sku,
           barcode: variant.barcode,
           price: variantPrice?.amount || null,
+          price_display: enrichedVariantPrice?.display_amount || null,
+          price_formatted: enrichedVariantPrice?.formatted || null,
           currency: variantPrice?.currency_code || "ghs",
           quantity: 1, // Each variant represents one unit
           options: variant.options,
