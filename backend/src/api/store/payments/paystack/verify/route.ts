@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
-import { ICartModuleService, ICustomerModuleService, IOrderModuleService, IAuthModuleService } from "@medusajs/framework/types";
+import { ICartModuleService, ICustomerModuleService, IOrderModuleService, IAuthModuleService, IPaymentModuleService } from "@medusajs/framework/types";
 import { Modules, ContainerRegistrationKeys } from "@medusajs/framework/utils";
 import { getCartId, getCustomerFromAuth } from "../../../cart/helpers";
 import { PAYSTACK_SECRET_KEY } from "../../../../../lib/constants";
@@ -52,6 +52,7 @@ export async function GET(
     const customerModuleService: ICustomerModuleService = req.scope.resolve(Modules.CUSTOMER);
     const authModuleService: IAuthModuleService = req.scope.resolve(Modules.AUTH);
     const orderModuleService: IOrderModuleService = req.scope.resolve(Modules.ORDER);
+    const paymentModuleService: IPaymentModuleService = req.scope.resolve(Modules.PAYMENT);
     const query = req.scope.resolve("query");
     const remoteLink = req.scope.resolve(ContainerRegistrationKeys.REMOTE_LINK);
 
@@ -240,6 +241,81 @@ export async function GET(
 
       if (!order) {
         throw new Error("Failed to create order - no order returned");
+      }
+
+      // Create payment collection for the order
+      try {
+        const paymentCollection = await paymentModuleService.createPaymentCollections({
+          currency_code: cart.currency_code || "ghs",
+          amount: cartTotal,
+          region_id: cart.region_id,
+        });
+
+        console.log("✅ Payment collection created:", {
+          payment_collection_id: paymentCollection.id,
+          amount: paymentCollection.amount,
+          currency: paymentCollection.currency_code,
+        });
+
+        // Create payment session within the collection
+        const payment = await paymentModuleService.createPayments({
+          amount: cartTotal,
+          currency_code: cart.currency_code || "ghs",
+          provider_id: "paystack",
+          data: {
+            reference: paymentData.reference,
+            transaction_id: paymentData.id,
+            channel: paymentData.channel,
+            paid_at: paymentData.paid_at,
+            gateway_response: paymentData.gateway_response,
+            authorization: paymentData.authorization,
+          },
+        });
+
+        console.log("✅ Payment record created:", {
+          payment_id: payment.id,
+          amount: payment.amount,
+          provider: payment.provider_id,
+        });
+
+        // Link payment collection to order
+        await remoteLink.create({
+          paymentCollectionService: {
+            payment_collection_id: paymentCollection.id,
+          },
+          orderService: {
+            order_id: order.id,
+          },
+        });
+
+        console.log("✅ Payment collection linked to order:", {
+          order_id: order.id,
+          payment_collection_id: paymentCollection.id,
+        });
+
+        // Link payment to payment collection
+        await remoteLink.create({
+          paymentService: {
+            payment_id: payment.id,
+          },
+          paymentCollectionService: {
+            payment_collection_id: paymentCollection.id,
+          },
+        });
+
+        console.log("✅ Payment linked to payment collection");
+
+        // Update payment collection status to captured
+        await paymentModuleService.updatePaymentCollections(paymentCollection.id, {
+          status: "captured",
+        });
+
+        console.log("✅ Payment collection status set to captured");
+
+      } catch (paymentError) {
+        console.error("⚠️ Failed to create payment collection (order still created):", paymentError);
+        // Don't fail the entire request - order is already created
+        // Payment info is still in metadata
       }
 
       // Log successful order creation with payment captured

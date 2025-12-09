@@ -1,6 +1,6 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
-import { IOrderModuleService } from "@medusajs/framework/types";
-import { Modules } from "@medusajs/framework/utils";
+import { IOrderModuleService, IPaymentModuleService } from "@medusajs/framework/types";
+import { Modules, ContainerRegistrationKeys } from "@medusajs/framework/utils";
 import { createHmac } from "crypto";
 import { PAYSTACK_SECRET_KEY } from "../../../../../lib/constants";
 
@@ -115,6 +115,7 @@ async function handleChargeSuccess(data: any, req: MedusaRequest) {
 
     // Find order by payment reference and update payment status
     const orderModuleService: IOrderModuleService = req.scope.resolve(Modules.ORDER);
+    const paymentModuleService: IPaymentModuleService = req.scope.resolve(Modules.PAYMENT);
     const query = req.scope.resolve("query");
 
     // Search for orders with this payment reference in metadata
@@ -126,6 +127,8 @@ async function handleChargeSuccess(data: any, req: MedusaRequest) {
         "metadata",
         "status",
         "total",
+        "payment_collections.*",
+        "payment_collections.payments.*",
       ],
       filters: {},
       pagination: {
@@ -177,6 +180,44 @@ async function handleChargeSuccess(data: any, req: MedusaRequest) {
         payment_status: "success",
         order_status: matchingOrder.status,
       });
+
+      // Update payment collection status if it exists
+      if (matchingOrder.payment_collections && matchingOrder.payment_collections.length > 0) {
+        try {
+          const paymentCollection = matchingOrder.payment_collections[0];
+          
+          await paymentModuleService.updatePaymentCollections(paymentCollection.id, {
+            status: "captured",
+          });
+
+          console.log("✓ Payment collection updated via webhook:", {
+            payment_collection_id: paymentCollection.id,
+            status: "captured",
+          });
+
+          // Update payment data if it exists
+          if (paymentCollection.payments && paymentCollection.payments.length > 0) {
+            const payment = paymentCollection.payments[0];
+            
+            await paymentModuleService.updatePayments(payment.id, {
+              data: {
+                ...payment.data,
+                webhook_received_at: new Date().toISOString(),
+                paid_at: data.paid_at,
+                gateway_response: data.gateway_response,
+                authorization: data.authorization,
+              },
+            });
+
+            console.log("✓ Payment record updated via webhook:", {
+              payment_id: payment.id,
+            });
+          }
+        } catch (pcError) {
+          console.error("⚠️ Failed to update payment collection via webhook:", pcError);
+          // Don't fail the entire webhook - order metadata is still updated
+        }
+      }
     } else {
       console.log("⚠ No order found for payment reference:", data.reference);
       console.log("Searched through", orders.length, "orders");
