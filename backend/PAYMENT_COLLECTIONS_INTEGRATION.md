@@ -1,8 +1,18 @@
 # Payment Collections Integration with Paystack
 
-## Overview
+## ⚠️ IMPLEMENTATION NOTE
 
-This document explains how **payment collections** are now integrated with your custom Paystack payment flow. Payment collections provide a standardized way to track payments in Medusa, offering better consistency and compatibility with Medusa's ecosystem.
+**This document describes a future implementation that is NOT currently active.**
+
+Your Paystack integration currently uses **order metadata** to store payment information, which works perfectly. This document is kept for reference if you decide to implement payment collections in the future.
+
+**Current Status:** See `PAYMENT_COLLECTIONS_STATUS.md`
+
+---
+
+## Overview (Future Implementation)
+
+This document explains how **payment collections** could be integrated with your custom Paystack payment flow. Payment collections provide a standardized way to track payments in Medusa, offering better consistency and compatibility with Medusa's ecosystem.
 
 ---
 

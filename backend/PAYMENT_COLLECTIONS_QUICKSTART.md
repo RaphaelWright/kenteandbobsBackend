@@ -1,8 +1,12 @@
 # Payment Collections - Quick Reference
 
-## Yes, Paystack Payments Are Now Recorded with Payment Collections! ✅
+## Payment Collections Status: Not Implemented ⚠️
 
-As of the latest update, all Paystack payments create proper payment collections in Medusa.
+**Your Paystack payments currently use order metadata (not payment collections).**
+
+This is a **fully functional approach** that works perfectly for your use case. Payment collections can be added in the future if needed, but are not required.
+
+See `PAYMENT_COLLECTIONS_STATUS.md` for details.
 
 ---
 
