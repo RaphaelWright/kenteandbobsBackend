@@ -29,11 +29,22 @@ export async function GET(
     const {
       limit = 50,
       offset = 0,
+      page, // Optional: page number (1-indexed)
       status,
       email,
       order_by = "created_at",
       order_direction = "desc"
     } = req.query;
+
+    // Calculate offset from page number if provided (page is 1-indexed)
+    const parsedLimit = Number(limit);
+    const calculatedOffset = page 
+      ? (Number(page) - 1) * parsedLimit 
+      : Number(offset);
+
+    // Validate and sanitize pagination parameters
+    const validatedLimit = Math.min(Math.max(Number(limit) || 50, 1), 100); // Between 1 and 100
+    const validatedOffset = Math.max(Number(offset) || 0, 0); // Must be >= 0
 
     // Build filters
     const filters: any = {};
@@ -45,6 +56,16 @@ export async function GET(
     if (email) {
       filters.email = email;
     }
+
+    // Log pagination parameters for debugging
+    console.log("📊 Admin Orders Query:", {
+      limit: parsedLimit,
+      offset: calculatedOffset,
+      page: page ? Number(page) : undefined,
+      filters,
+      order_by,
+      order_direction,
+    });
 
     // Fetch orders using the query service for better field resolution
     const { data: orders, metadata } = await query.graph({
@@ -77,9 +98,18 @@ export async function GET(
       ],
       filters,
       pagination: {
-        skip: Number(offset),
-        take: Number(limit),
+        skip: calculatedOffset,
+        take: parsedLimit,
+        order: {
+          [order_by as string]: order_direction.toUpperCase(),
+        },
       },
+    });
+
+    console.log("📊 Orders fetched:", {
+      returned_count: orders?.length || 0,
+      metadata_count: metadata?.count,
+      has_metadata: !!metadata,
     });
 
     // Fetch customer information for all orders
@@ -251,12 +281,37 @@ export async function GET(
       };
     });
 
+    // Calculate pagination metadata
+    const totalOrders = metadata?.count || formattedOrders.length;
+    const currentPage = page ? Number(page) : Math.floor(calculatedOffset / parsedLimit) + 1;
+    const totalPages = Math.ceil(totalOrders / parsedLimit);
+    const hasNextPage = calculatedOffset + formattedOrders.length < totalOrders;
+    const hasPreviousPage = calculatedOffset > 0;
+
     res.status(200).json({
       orders: formattedOrders,
+      pagination: {
+        // Current page data
+        count: formattedOrders.length,      // Orders in current response
+        total: totalOrders,                  // Total orders in database
+        
+        // Pagination parameters
+        offset: calculatedOffset,            // Current offset
+        limit: parsedLimit,                  // Orders per page
+        page: currentPage,                   // Current page number (1-indexed)
+        total_pages: totalPages,             // Total number of pages
+        
+        // Navigation helpers
+        has_next_page: hasNextPage,          // Can go to next page?
+        has_previous_page: hasPreviousPage,  // Can go to previous page?
+        next_page: hasNextPage ? currentPage + 1 : null,
+        previous_page: hasPreviousPage ? currentPage - 1 : null,
+      },
+      // Legacy fields for backward compatibility
       count: formattedOrders.length,
-      offset: Number(offset),
-      limit: Number(limit),
-      total: metadata?.count || formattedOrders.length,
+      offset: calculatedOffset,
+      limit: parsedLimit,
+      total: totalOrders,
     });
 
   } catch (error) {
