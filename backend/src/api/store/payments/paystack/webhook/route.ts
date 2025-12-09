@@ -183,17 +183,20 @@ async function handleChargeSuccess(data: any, req: MedusaRequest) {
       // Update payment collection if it exists
       try {
         // Query for payment collections linked to this order
-        const paymentCollectionLinks = await remoteLink.query({
-          [Modules.ORDER]: {
-            order_id: matchingOrder.id,
-          },
-          [Modules.PAYMENT]: {
-            fields: ["payment_collection_id"],
+        const remoteQuery = req.scope.resolve("remoteQuery");
+        
+        const paymentCollectionLinks = await remoteQuery({
+          entryPoint: "order_payment_collection",
+          fields: ["order_id", "payment_collection_id"],
+          variables: {
+            filters: {
+              order_id: matchingOrder.id,
+            },
           },
         });
 
         if (paymentCollectionLinks && paymentCollectionLinks.length > 0) {
-          const paymentCollectionId = paymentCollectionLinks[0][Modules.PAYMENT].payment_collection_id;
+          const paymentCollectionId = paymentCollectionLinks[0].payment_collection_id;
 
           // Get the payment collection
           const paymentCollection = await paymentModule.retrievePaymentCollection(
@@ -205,7 +208,8 @@ async function handleChargeSuccess(data: any, req: MedusaRequest) {
           if (paymentCollection.payment_sessions && paymentCollection.payment_sessions.length > 0) {
             for (const session of paymentCollection.payment_sessions) {
               if (session.provider_id === "paystack") {
-                await paymentModule.updatePaymentSession(session.id, {
+                await paymentModule.updatePaymentSession({
+                  id: session.id,
                   data: {
                     ...session.data,
                     webhook_received_at: new Date().toISOString(),

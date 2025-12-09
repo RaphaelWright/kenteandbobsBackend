@@ -3,7 +3,7 @@ import { ICartModuleService, ICustomerModuleService, IOrderModuleService, IAuthM
 import { Modules, ContainerRegistrationKeys } from "@medusajs/framework/utils";
 import { getCartId, getCustomerFromAuth } from "../../../cart/helpers";
 import { PAYSTACK_SECRET_KEY } from "../../../../../lib/constants";
-import { createPaystackPaymentCollectionWorkflow } from "../../../../workflows/payment";
+import { createPaystackPaymentCollectionWorkflow } from "workflows/payment";
 
 /**
  * GET /store/payments/paystack/verify?reference=xxx

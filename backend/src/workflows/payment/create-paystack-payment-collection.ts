@@ -4,6 +4,7 @@ import {
   createStep,
   StepResponse,
 } from "@medusajs/framework/workflows-sdk";
+import type { WorkflowTypes } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 
@@ -67,30 +68,39 @@ const createPaymentSessionStep = createStep(
   ) => {
     const paymentModule = container.resolve(Modules.PAYMENT);
 
-    // Create payment session for Paystack
-    const paymentSession = await paymentModule.createPaymentSession(
-      input.payment_collection_id,
-      {
-        provider_id: "paystack",
-        amount: input.amount,
-        currency_code: input.currency_code,
-        data: input.payment_data,
-        context: {},
-      }
-    );
+    try {
+      // Create payment session for Paystack
+      const paymentSession = await paymentModule.createPaymentSession(
+        input.payment_collection_id,
+        {
+          provider_id: "paystack",
+          amount: input.amount,
+          currency_code: input.currency_code,
+          data: input.payment_data,
+          context: {},
+        }
+      );
 
-    // Immediately mark as authorized since payment is already completed
-    const authorizedSession = await paymentModule.authorizePaymentSession(
-      paymentSession.id,
-      {}
-    );
+      // Immediately mark as authorized since payment is already completed
+      const authorizedSession = await paymentModule.authorizePaymentSession(
+        paymentSession.id,
+        {}
+      );
 
-    return new StepResponse(authorizedSession, paymentSession.id);
+      return new StepResponse(authorizedSession, paymentSession.id);
+    } catch (error) {
+      console.error("Error in createPaymentSessionStep:", error);
+      throw error;
+    }
   },
   async (paymentSessionId, { container }) => {
-    // Compensation: Delete payment session if workflow fails
-    const paymentModule = container.resolve(Modules.PAYMENT);
-    await paymentModule.deletePaymentSession(paymentSessionId);
+    try {
+      // Compensation: Delete payment session if workflow fails
+      const paymentModule = container.resolve(Modules.PAYMENT);
+      await paymentModule.deletePaymentSession(paymentSessionId);
+    } catch (error) {
+      console.error("Error in createPaymentSessionStep compensation:", error);
+    }
   }
 );
 
@@ -149,7 +159,7 @@ const linkPaymentCollectionToOrderStep = createStep(
  */
 export const createPaystackPaymentCollectionWorkflow = createWorkflow(
   "create-paystack-payment-collection",
-  (input: CreatePaystackPaymentInput) => {
+  function (input: CreatePaystackPaymentInput) {
     // Step 1: Create payment collection
     const paymentCollection = createPaymentCollectionStep(input);
 
@@ -173,5 +183,5 @@ export const createPaystackPaymentCollectionWorkflow = createWorkflow(
       link,
     });
   }
-);
+) as WorkflowTypes.ReturnWorkflow<CreatePaystackPaymentInput, any, any>;
 
