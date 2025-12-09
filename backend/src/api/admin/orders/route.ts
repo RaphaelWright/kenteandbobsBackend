@@ -101,7 +101,7 @@ export async function GET(
         skip: calculatedOffset,
         take: parsedLimit,
         order: {
-          [order_by as string]: order_direction.toUpperCase(),
+          [order_by as string]: String(order_direction).toUpperCase(),
         },
       },
     });
