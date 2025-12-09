@@ -8,6 +8,14 @@ import { PAYSTACK_SECRET_KEY } from "../../../../../lib/constants";
  * GET /store/payments/paystack/verify?reference=xxx
  * Verify Paystack payment and create order
  * Requires authentication
+ * 
+ * IMPORTANT: This endpoint creates a complete order (just like cart/complete does).
+ * This is the "payment-first" flow where payment verification triggers order creation.
+ * The cart is marked as completed, deleted, and the order is created with payment
+ * already captured.
+ * 
+ * See ORDER_COMPLETION_FLOWS.md for detailed documentation about how this flow
+ * compares to the traditional cart/complete flow.
  */
 export async function GET(
   req: MedusaRequest,
@@ -188,6 +196,12 @@ export async function GET(
 
       // Prepare order metadata with payment info
       const orderMetadata: any = {
+        // Order completion tracking
+        order_completed_via: "payment_verification",
+        order_completed_at: new Date().toISOString(),
+        cart_completed: true,
+        
+        // Payment details
         payment_provider: "paystack",
         payment_reference: paymentData.reference,
         payment_status: paymentData.status,
@@ -199,6 +213,11 @@ export async function GET(
         payment_card_type: paymentData.authorization?.card_type,
         payment_last4: paymentData.authorization?.last4,
         payment_bank: paymentData.authorization?.bank,
+        
+        // Delivery/payment metadata from cart if available
+        ...(cart.metadata?.delivery_option && { delivery_option: cart.metadata.delivery_option }),
+        ...(cart.metadata?.additional_phone && { additional_phone: cart.metadata.additional_phone }),
+        ...(cart.metadata?.payment_method && { payment_method: cart.metadata.payment_method }),
       };
 
       // Create order
@@ -231,7 +250,13 @@ export async function GET(
           },
         }]);
 
-        console.log("Order payment status updated:", order.id);
+        console.log("✅ Order completed via payment verification:", {
+          order_id: order.id,
+          display_id: (order as any).display_id || order.id,
+          cart_completed: true,
+          payment_captured: true,
+          completion_method: "payment_verification",
+        });
       } catch (updateError) {
         console.error("Failed to update order payment status:", updateError);
         // Continue even if update fails
@@ -276,6 +301,10 @@ export async function GET(
       // Delete the cart after order creation
       try {
         await cartModuleService.deleteCarts([cartId]);
+        console.log("✅ Cart deleted after payment verification:", {
+          cart_id: cartId,
+          order_id: order.id,
+        });
       } catch (error) {
         console.warn("Failed to delete cart after order creation:", error);
         // Don't fail the request if cart deletion fails

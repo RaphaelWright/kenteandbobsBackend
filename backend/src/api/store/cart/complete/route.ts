@@ -26,6 +26,13 @@ interface CheckoutRequest {
  * Complete cart (checkout) - requires authentication
  * Converts cart to order
  * 
+ * NOTE: This is one of TWO ways orders can be created:
+ * 1. This endpoint (cart/complete) - Traditional checkout flow
+ * 2. Payment verification endpoint - Payment-first flow
+ * 
+ * Both flows are valid and result in a complete order. See ORDER_COMPLETION_FLOWS.md
+ * for detailed documentation about both completion methods.
+ * 
  * Accepts frontend structure with delivery and payment data
  */
 export async function POST(
@@ -237,7 +244,12 @@ export async function POST(
       const finalBillingAddress = completedCart.billing_address || billingAddress;
 
       // Prepare order metadata
-      const orderMetadata: any = {};
+      const orderMetadata: any = {
+        // Order completion tracking
+        order_completed_via: "cart_complete",
+        order_completed_at: new Date().toISOString(),
+        cart_completed: true,
+      };
       
       if (delivery) {
         orderMetadata.delivery_option = delivery.deliveryOption;
@@ -319,6 +331,14 @@ export async function POST(
       // Optionally delete the cart after order creation
       try {
         await cartModuleService.deleteCarts([targetCartId]);
+        console.log("✅ Order completed via cart/complete:", {
+          order_id: order.id,
+          display_id: (order as any).display_id || order.id,
+          cart_id: targetCartId,
+          cart_completed: true,
+          cart_deleted: true,
+          completion_method: "cart_complete",
+        });
       } catch (error) {
         console.warn("Failed to delete cart after order creation:", error);
         // Don't fail the request if cart deletion fails
