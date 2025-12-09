@@ -55,7 +55,7 @@ export async function DELETE(
     if (customerId) {
       try {
         customer = await customerModuleService.retrieveCustomer(customerId);
-      } catch (error) {
+      } catch (error: any) {
         console.warn("Customer not found by ID, trying by email:", error.message);
       }
     }
@@ -78,20 +78,23 @@ export async function DELETE(
     }
 
     // Verify the address belongs to this customer
-    let address;
-    try {
-      address = await customerModuleService.retrieveCustomerAddress(addressId);
-      
-      if (address.customer_id !== customer.id) {
-        return res.status(403).json({
-          error: "Forbidden",
-          message: "You don't have permission to delete this address"
-        });
-      }
-    } catch (error) {
+    const addresses = await customerModuleService.listCustomerAddresses({
+      id: addressId
+    });
+
+    if (!addresses || addresses.length === 0) {
       return res.status(404).json({
         error: "Address not found",
         message: "The specified address does not exist"
+      });
+    }
+
+    const address = addresses[0];
+
+    if (address.customer_id !== customer.id) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "You don't have permission to delete this address"
       });
     }
 
@@ -105,7 +108,7 @@ export async function DELETE(
       deleted: true,
       message: "Address deleted successfully"
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Delete address error:", error);
     res.status(500).json({
       error: error.message || "Failed to delete address"
@@ -166,7 +169,7 @@ export async function GET(
     if (customerId) {
       try {
         customer = await customerModuleService.retrieveCustomer(customerId);
-      } catch (error) {
+      } catch (error: any) {
         console.warn("Customer not found by ID, trying by email:", error.message);
       }
     }
@@ -189,28 +192,31 @@ export async function GET(
     }
 
     // Retrieve the address
-    let address;
-    try {
-      address = await customerModuleService.retrieveCustomerAddress(addressId);
-      
-      // Verify the address belongs to this customer
-      if (address.customer_id !== customer.id) {
-        return res.status(403).json({
-          error: "Forbidden",
-          message: "You don't have permission to view this address"
-        });
-      }
-    } catch (error) {
+    const addresses = await customerModuleService.listCustomerAddresses({
+      id: addressId
+    });
+
+    if (!addresses || addresses.length === 0) {
       return res.status(404).json({
         error: "Address not found",
         message: "The specified address does not exist"
       });
     }
 
+    const address = addresses[0];
+
+    // Verify the address belongs to this customer
+    if (address.customer_id !== customer.id) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "You don't have permission to view this address"
+      });
+    }
+
     res.status(200).json({
       address
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Get address error:", error);
     res.status(500).json({
       error: error.message || "Failed to get address"
@@ -271,7 +277,7 @@ export async function PATCH(
     if (customerId) {
       try {
         customer = await customerModuleService.retrieveCustomer(customerId);
-      } catch (error) {
+      } catch (error: any) {
         console.warn("Customer not found by ID, trying by email:", error.message);
       }
     }
@@ -294,20 +300,23 @@ export async function PATCH(
     }
 
     // Verify the address belongs to this customer
-    let address;
-    try {
-      address = await customerModuleService.retrieveCustomerAddress(addressId);
-      
-      if (address.customer_id !== customer.id) {
-        return res.status(403).json({
-          error: "Forbidden",
-          message: "You don't have permission to update this address"
-        });
-      }
-    } catch (error) {
+    const addresses = await customerModuleService.listCustomerAddresses({
+      id: addressId
+    });
+
+    if (!addresses || addresses.length === 0) {
       return res.status(404).json({
         error: "Address not found",
         message: "The specified address does not exist"
+      });
+    }
+
+    const address = addresses[0];
+
+    if (address.customer_id !== customer.id) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "You don't have permission to update this address"
       });
     }
 
@@ -326,7 +335,7 @@ export async function PATCH(
       metadata,
       is_default_shipping,
       is_default_billing
-    } = req.body;
+    } = req.body as any;
 
     // Validate phone number format if provided (Ghana format)
     if (phone && !phone.match(/^\+233\d{9}$/)) {
@@ -337,9 +346,7 @@ export async function PATCH(
     }
 
     // Build update object
-    const updateData: any = {
-      id: addressId
-    };
+    const updateData: any = {};
 
     if (first_name !== undefined) updateData.first_name = first_name;
     if (last_name !== undefined) updateData.last_name = last_name;
@@ -355,19 +362,18 @@ export async function PATCH(
     if (is_default_shipping !== undefined) updateData.is_default_shipping = is_default_shipping;
     if (is_default_billing !== undefined) updateData.is_default_billing = is_default_billing;
 
-    // Update the address
-    const updatedAddress = await customerModuleService.updateCustomerAddresses(updateData);
+    // Update the address - updateCustomerAddresses expects (addressId, data)
+    const updatedAddress = await customerModuleService.updateCustomerAddresses(addressId, updateData);
 
     console.log("✅ Address updated successfully:", addressId);
 
     res.status(200).json({
       address: updatedAddress
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Update address error:", error);
     res.status(500).json({
       error: error.message || "Failed to update address"
     });
   }
 }
-

@@ -42,10 +42,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
     if (customerId) {
       try {
-        customer = await customerModuleService.retrieveCustomer(customerId, {
-          relations: ["addresses"]
-        });
-      } catch (error) {
+        customer = await customerModuleService.retrieveCustomer(customerId);
+      } catch (error: any) {
         console.warn("Customer not found by ID, trying by email:", error.message);
       }
     }
@@ -54,8 +52,6 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     if (!customer && customerEmail) {
       const customers = await customerModuleService.listCustomers({
         email: customerEmail
-      }, {
-        relations: ["addresses"]
       });
 
       if (customers && customers.length > 0) {
@@ -69,11 +65,16 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       });
     }
 
+    // Fetch customer addresses
+    const addresses = await customerModuleService.listCustomerAddresses({
+      customer_id: customer.id
+    });
+
     // Return customer addresses
     res.status(200).json({
-      addresses: customer.addresses || []
+      addresses: addresses || []
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Get addresses error:", error);
     res.status(500).json({
       error: error.message || "Failed to get addresses"
@@ -122,7 +123,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     if (customerId) {
       try {
         customer = await customerModuleService.retrieveCustomer(customerId);
-      } catch (error) {
+      } catch (error: any) {
         console.warn("Customer not found by ID, trying by email:", error.message);
       }
     }
@@ -159,7 +160,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       metadata,
       is_default_shipping,
       is_default_billing
-    } = req.body;
+    } = req.body as any;
 
     // Required fields validation
     if (!first_name || !last_name || !address_1 || !city || !country_code || !phone) {
@@ -178,7 +179,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
 
     // Create the address
-    const addressData: any = {
+    const addressData = {
       customer_id: customer.id,
       first_name,
       last_name,
@@ -197,16 +198,15 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
     const createdAddress = await customerModuleService.createCustomerAddresses(addressData);
 
-    console.log("✅ Address created successfully:", createdAddress.id);
+    console.log("✅ Address created successfully:", (createdAddress as any).id);
 
     res.status(201).json({
       address: createdAddress
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Create address error:", error);
     res.status(500).json({
       error: error.message || "Failed to create address"
     });
   }
 }
-
