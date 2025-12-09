@@ -195,16 +195,19 @@ export async function GET(
       }));
 
       // Prepare order metadata with payment info
+      // IMPORTANT: Payment is already verified at this point, so we mark it as captured immediately
       const orderMetadata: any = {
         // Order completion tracking
         order_completed_via: "payment_verification",
         order_completed_at: new Date().toISOString(),
         cart_completed: true,
         
-        // Payment details
+        // Payment details - ALREADY CAPTURED since we verified with Paystack
         payment_provider: "paystack",
         payment_reference: paymentData.reference,
-        payment_status: paymentData.status,
+        payment_status: "success", // Explicitly set to "success"
+        payment_captured: true, // Mark as captured immediately
+        payment_captured_at: new Date().toISOString(), // Set capture timestamp
         payment_channel: paymentData.channel,
         payment_paid_at: paymentData.paid_at,
         payment_transaction_id: paymentData.id,
@@ -239,28 +242,17 @@ export async function GET(
         throw new Error("Failed to create order - no order returned");
       }
 
-      // Update order to mark payment as captured
-      try {
-        await orderModuleService.updateOrders([{
-          id: order.id,
-          metadata: {
-            ...orderMetadata,
-            payment_captured: true,
-            payment_captured_at: new Date().toISOString(),
-          },
-        }]);
-
-        console.log("✅ Order completed via payment verification:", {
-          order_id: order.id,
-          display_id: (order as any).display_id || order.id,
-          cart_completed: true,
-          payment_captured: true,
-          completion_method: "payment_verification",
-        });
-      } catch (updateError) {
-        console.error("Failed to update order payment status:", updateError);
-        // Continue even if update fails
-      }
+      // Log successful order creation with payment captured
+      console.log("✅ Order completed via payment verification:", {
+        order_id: order.id,
+        display_id: (order as any).display_id || order.id,
+        cart_id: cartId,
+        cart_completed: true,
+        payment_captured: true,
+        payment_status: "success",
+        payment_reference: paymentData.reference,
+        completion_method: "payment_verification",
+      });
 
       // Format order response
       const formattedOrder = {

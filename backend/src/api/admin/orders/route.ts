@@ -7,6 +7,13 @@ import { Modules } from "@medusajs/framework/utils";
  * Fetch all orders for admin panel
  * Includes order details, items, shipping address, and totals
  * Properly checks metadata for payment status
+ * 
+ * IMPORTANT: Orders can be created via two methods:
+ * 1. cart/complete - Traditional checkout (payment pending or captured later)
+ * 2. payment verification - Payment-first flow (payment already captured)
+ * 
+ * Both methods set payment_captured: true when payment is captured.
+ * See ORDER_COMPLETION_FLOWS.md for details.
  */
 export async function GET(
   req: MedusaRequest,
