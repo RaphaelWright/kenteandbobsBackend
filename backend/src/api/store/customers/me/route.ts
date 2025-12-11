@@ -251,7 +251,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
             };
 
             const newAddress = await customerModuleService.createCustomerAddresses(newAddressData);
-            console.log("✅ Address created:", newAddress.id);
+            console.log("✅ Address created:", Array.isArray(newAddress) ? newAddress[0]?.id : (newAddress as any)?.id);
           } catch (error) {
             console.error("Error creating address:", error);
           }
