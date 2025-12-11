@@ -169,7 +169,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
 
     // Extract update data from request body
-    const { customer: customerData } = req.body;
+    const { customer: customerData } = req.body as any;
 
     if (!customerData) {
       return res.status(400).json({
@@ -224,7 +224,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
             if (addressData.phone !== undefined) updateAddressData.phone = addressData.phone;
             if (addressData.metadata !== undefined) updateAddressData.metadata = addressData.metadata;
 
-            await customerModuleService.updateAddresses(addressData.id, updateAddressData);
+            await customerModuleService.updateCustomerAddresses(addressData.id, updateAddressData);
             console.log("✅ Address updated:", addressData.id);
           } catch (error) {
             console.error("Error updating address:", error);
@@ -250,7 +250,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
               metadata: addressData.metadata || {}
             };
 
-            const newAddress = await customerModuleService.createAddresses(newAddressData);
+            const newAddress = await customerModuleService.createCustomerAddresses(newAddressData);
             console.log("✅ Address created:", newAddress.id);
           } catch (error) {
             console.error("Error creating address:", error);
