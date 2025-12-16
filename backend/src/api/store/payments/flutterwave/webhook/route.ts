@@ -45,18 +45,18 @@ export async function POST(
       });
     }
 
-    const webhookData = req.body;
+    const webhookData = req.body as any;
 
     console.log("Flutterwave webhook received:", {
-      event: webhookData.event,
-      tx_ref: webhookData.data?.tx_ref,
-      transaction_id: webhookData.data?.id,
-      status: webhookData.data?.status,
+      event: webhookData?.event,
+      tx_ref: webhookData?.data?.tx_ref,
+      transaction_id: webhookData?.data?.id,
+      status: webhookData?.data?.status,
     });
 
     // Handle different webhook events
-    const event = webhookData.event;
-    const paymentData = webhookData.data;
+    const event = webhookData?.event;
+    const paymentData = webhookData?.data;
 
     if (!paymentData) {
       return res.status(400).json({

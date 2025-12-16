@@ -2,7 +2,6 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
 import { ICartModuleService, IOrderModuleService, ICustomerModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
 import { FLUTTERWAVE_SECRET_KEY } from "../../../../../lib/constants";
-import { convertDeliveryToAddress } from "../../../../utils/checkout-validation";
 
 interface VerifyPaymentRequest {
   tx_ref?: string;
@@ -190,14 +189,14 @@ export async function POST(
     let shippingAddress = null;
     let billingAddress = null;
 
-    if (cart.metadata?.delivery) {
+    // Check if shipping address exists in cart metadata
+    if (cart.metadata?.shipping_address) {
       try {
-        const deliveryData = typeof cart.metadata.delivery === 'string' 
-          ? JSON.parse(cart.metadata.delivery) 
-          : cart.metadata.delivery;
-        shippingAddress = convertDeliveryToAddress(deliveryData);
+        shippingAddress = typeof cart.metadata.shipping_address === 'string' 
+          ? JSON.parse(cart.metadata.shipping_address) 
+          : cart.metadata.shipping_address;
       } catch (error) {
-        console.error("Error parsing delivery data:", error);
+        console.error("Error parsing shipping address:", error);
       }
     }
 
@@ -231,7 +230,7 @@ export async function POST(
 
     // Delete the cart after successful order creation
     try {
-      await cartModuleService.deleteCart(cartId);
+      await cartModuleService.deleteCarts([cartId]);
       console.log("Cart deleted after order creation:", cartId);
     } catch (error) {
       console.error("Failed to delete cart:", error);
@@ -248,7 +247,7 @@ export async function POST(
         email: order.email,
         status: order.status,
         payment_status: "captured",
-        fulfillment_status: order.fulfillment_status || "not_fulfilled",
+        fulfillment_status: "not_fulfilled",
         total: order.total,
         currency_code: order.currency_code,
         created_at: order.created_at,
