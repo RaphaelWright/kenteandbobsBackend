@@ -15,12 +15,13 @@
   "scripts": {
     "build": "medusa build && node src/scripts/postBuild.js",
     "seed": "medusa exec ./src/scripts/seed.ts",
-    "start": "medusa start",
+    "ib": "init-backend",
+    "start": "node src/scripts/ensure-migrations.js && init-backend && cd .medusa/server && medusa start --verbose",
     "dev": "medusa develop",
     "email:dev": "email dev --dir=./src/modules/email-notifications/templates --port=3002",
-    "migrations:run": "medusa migrations run",
-    "migrations:generate": "medusa db:generate",
-    "db:sync": "medusa db:sync-links"
+    "migrations:run": "cd .medusa/server && medusa migrations run",
+    "migrations:generate": "cd .medusa/server && medusa db:generate",
+    "db:sync": "cd .medusa/server && medusa db:sync-links"
   },
   "dependencies": {
     "@medusajs/admin-sdk": "2.10.2",
@@ -69,6 +70,7 @@
   },
   "packageManager": "pnpm@9.10.0",
   "engines": {
-    "node": "20.x"
+    "node": "22.x",
+    "npm": "10.x"
   }
 }
