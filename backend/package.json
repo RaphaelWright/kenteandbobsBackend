@@ -46,7 +46,6 @@
     "medusa-payment-paystack": "^2.1.0",
     "medusajs-launch-utils": "0.0.18",
     "minio": "^8.0.3",
-    "next": "^16.0.10",
     "pg": "^8.13.1",
     "resend": "4.0.1",
     "ulid": "^2.3.0"
