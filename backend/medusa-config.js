@@ -16,9 +16,6 @@ import {
   FRONTEND_URL,
   PAYSTACK_SECRET_KEY,
   PAYSTACK_PUBLIC_KEY,
-  FLUTTERWAVE_SECRET_KEY,
-  FLUTTERWAVE_PUBLIC_KEY,
-  FLUTTERWAVE_ENCRYPTION_KEY,
   WORKER_MODE,
   MINIO_ENDPOINT,
   MINIO_ACCESS_KEY,
@@ -183,28 +180,19 @@ const medusaConfig = {
         ]
       }
     }] : []),
-    ...((PAYSTACK_SECRET_KEY || FLUTTERWAVE_SECRET_KEY) ? [{
+    ...(PAYSTACK_SECRET_KEY ? [{
       key: Modules.PAYMENT,
       resolve: '@medusajs/payment',
       options: {
         providers: [
-          ...(PAYSTACK_SECRET_KEY ? [{
+          {
             resolve: 'medusa-payment-paystack',
             id: 'paystack',
             options: {
               secret_key: PAYSTACK_SECRET_KEY,
               public_key: PAYSTACK_PUBLIC_KEY,
             },
-          }] : []),
-          ...(FLUTTERWAVE_SECRET_KEY ? [{
-            resolve: '@medusajs/payment',
-            id: 'flutterwave',
-            options: {
-              secret_key: FLUTTERWAVE_SECRET_KEY,
-              public_key: FLUTTERWAVE_PUBLIC_KEY,
-              encryption_key: FLUTTERWAVE_ENCRYPTION_KEY,
-            },
-          }] : []),
+          },
         ],
       },
     }] : [])
