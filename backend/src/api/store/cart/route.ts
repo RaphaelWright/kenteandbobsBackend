@@ -212,10 +212,12 @@ export async function PATCH(
       });
     }
 
-    // Verify cart exists
+    // Verify cart exists and retrieve with items to preserve them
     let cart;
     try {
-      cart = await cartModuleService.retrieveCart(cartId);
+      cart = await cartModuleService.retrieveCart(cartId, {
+        relations: ["items"],
+      });
     } catch (error) {
       return res.status(404).json({
         error: "Cart not found",
@@ -230,15 +232,36 @@ export async function PATCH(
       email,
       shipping_address,
       billing_address,
+      items, // Capture items if accidentally sent from frontend
+      ...rest // Capture any other fields
     } = req.body as {
       currency_code?: string;
       region_id?: string;
       email?: string;
       shipping_address?: any;
       billing_address?: any;
+      items?: any;
+      [key: string]: any;
     };
 
-    // Build update object
+    // Debug logging to understand what's being updated
+    console.log("🔍 PATCH /store/cart - Update request:", {
+      cartId,
+      hasItems: cart.items?.length > 0,
+      itemsCount: cart.items?.length || 0,
+      updateFields: Object.keys(req.body),
+      bodyIncludesItems: items !== undefined,
+      itemsValue: items,
+      extraFields: Object.keys(rest),
+    });
+
+    // CRITICAL: If frontend accidentally sends items field (e.g., items: []),
+    // we should NOT include it in the update as it will clear the cart
+    if (items !== undefined) {
+      console.warn("⚠️ WARNING: Request body includes 'items' field - this will be ignored to prevent clearing cart");
+    }
+
+    // Build update object carefully to preserve items
     const updateData: any = {};
 
     if (currency_code !== undefined) {
@@ -274,13 +297,19 @@ export async function PATCH(
     }
 
     // Update cart if there are changes
+    // Note: We do NOT include items in the update as they are managed separately
+    // through workflows. Medusa should preserve items automatically.
     if (Object.keys(updateData).length > 0) {
+      console.log("📝 Updating cart with data:", updateData);
+      
       await cartModuleService.updateCarts([
         {
           id: cartId,
           ...updateData,
         },
       ]);
+      
+      console.log("✅ Cart updated successfully");
     }
 
     // Fetch updated cart with basic relations only
@@ -289,6 +318,8 @@ export async function PATCH(
     const updatedCart = await cartModuleService.retrieveCart(cartId, {
       relations: ["items"],
     });
+    
+    console.log("🔍 Cart after update - items count:", updatedCart.items?.length || 0);
 
     // Format cart response
     const formattedCart = await formatCartResponse(updatedCart, query);
