@@ -209,6 +209,16 @@ export async function GET(
       ]);
     }
 
+    // Debug: Log cart state before creating order
+    console.log("🔍 Cart state before order creation:", {
+      cartId: cart.id,
+      hasShippingAddress: !!cart.shipping_address,
+      hasBillingAddress: !!cart.billing_address,
+      shippingAddress: cart.shipping_address,
+      billingAddress: cart.billing_address,
+      itemsCount: cart.items?.length || 0,
+    });
+
     // Prepare order items from cart items
     const orderItems = cart.items.map((item: any) => ({
       title: item.title,
@@ -260,7 +270,7 @@ export async function GET(
     // Create order from cart
     let order;
     try {
-      const orderResult = await orderModuleService.createOrders({
+      const orderData = {
         currency_code: cart.currency_code || "ghs",
         region_id: cart.region_id,
         items: orderItems,
@@ -269,7 +279,16 @@ export async function GET(
         ...(cart.shipping_address && { shipping_address: cart.shipping_address }),
         ...(cart.billing_address && { billing_address: cart.billing_address }),
         metadata: orderMetadata,
-      } as any);
+      };
+
+      console.log("📝 Creating order with data:", {
+        hasShippingAddress: !!orderData.shipping_address,
+        hasBillingAddress: !!orderData.billing_address,
+        shippingAddressFields: orderData.shipping_address ? Object.keys(orderData.shipping_address) : [],
+        billingAddressFields: orderData.billing_address ? Object.keys(orderData.billing_address) : [],
+      });
+
+      const orderResult = await orderModuleService.createOrders(orderData as any);
 
       // Handle both array and single order return types
       order = Array.isArray(orderResult) ? orderResult[0] : orderResult;

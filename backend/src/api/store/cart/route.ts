@@ -253,6 +253,8 @@ export async function PATCH(
       bodyIncludesItems: items !== undefined,
       itemsValue: items,
       extraFields: Object.keys(rest),
+      shippingAddressReceived: shipping_address,
+      billingAddressReceived: billing_address,
     });
 
     // CRITICAL: If frontend accidentally sends items field (e.g., items: []),
