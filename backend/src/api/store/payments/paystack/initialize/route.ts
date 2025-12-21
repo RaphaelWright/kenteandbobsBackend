@@ -8,6 +8,8 @@ interface InitializePaymentRequest {
   callback_url?: string;
   channels?: string[];
   metadata?: Record<string, any>;
+  shipping_address?: any;  // Allow frontend to pass addresses
+  billing_address?: any;   // Allow frontend to pass addresses
 }
 
 /**
@@ -197,7 +199,26 @@ export async function POST(
       callback_url,
       channels = ["card", "mobile_money", "bank"],
       metadata = {},
+      shipping_address,
+      billing_address,
     } = req.body as InitializePaymentRequest;
+
+    // Log address data if provided
+    if (shipping_address) {
+      console.log("📦 Shipping address provided for payment:", {
+        hasData: !!shipping_address,
+        hasFirstName: !!shipping_address.first_name,
+        fields: Object.keys(shipping_address),
+      });
+    }
+
+    if (billing_address) {
+      console.log("📦 Billing address provided for payment:", {
+        hasData: !!billing_address,
+        hasFirstName: !!billing_address.first_name,
+        fields: Object.keys(billing_address),
+      });
+    }
 
     // Determine frontend URL for callback
     const frontendUrl = process.env.FRONTEND_URL || process.env.STORE_CORS?.split(",")[0] || "http://localhost:8000";
@@ -214,6 +235,9 @@ export async function POST(
         cart_id: cart.id,
         customer_id: customer.id,
         customer_email: customer.email,
+        // Include addresses in metadata so they can be retrieved during verification
+        ...(shipping_address && { shipping_address }),
+        ...(billing_address && { billing_address }),
         ...metadata,
       },
     };

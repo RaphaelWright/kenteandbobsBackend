@@ -219,6 +219,26 @@ export async function GET(
       itemsCount: cart.items?.length || 0,
     });
 
+    // Try to get addresses from payment metadata (if frontend sends them)
+    // This is a fallback in case cart addresses aren't properly saved
+    let shippingAddress = cart.shipping_address;
+    let billingAddress = cart.billing_address;
+
+    if (paymentData.metadata?.shipping_address) {
+      console.log("📦 Using shipping address from payment metadata");
+      shippingAddress = paymentData.metadata.shipping_address;
+    }
+
+    if (paymentData.metadata?.billing_address) {
+      console.log("📦 Using billing address from payment metadata");
+      billingAddress = paymentData.metadata.billing_address;
+    }
+
+    // If no addresses available, log warning
+    if (!shippingAddress || !shippingAddress.first_name) {
+      console.warn("⚠️ WARNING: No valid shipping address found for order creation");
+    }
+
     // Prepare order items from cart items
     const orderItems = cart.items.map((item: any) => ({
       title: item.title,
@@ -276,8 +296,8 @@ export async function GET(
         items: orderItems,
         customer_id: customer.id,
         email: customer.email,
-        ...(cart.shipping_address && { shipping_address: cart.shipping_address }),
-        ...(cart.billing_address && { billing_address: cart.billing_address }),
+        ...(shippingAddress && { shipping_address: shippingAddress }),
+        ...(billingAddress && { billing_address: billingAddress }),
         metadata: orderMetadata,
       };
 
@@ -286,6 +306,8 @@ export async function GET(
         hasBillingAddress: !!orderData.billing_address,
         shippingAddressFields: orderData.shipping_address ? Object.keys(orderData.shipping_address) : [],
         billingAddressFields: orderData.billing_address ? Object.keys(orderData.billing_address) : [],
+        shippingAddressData: orderData.shipping_address,
+        billingAddressData: orderData.billing_address,
       });
 
       const orderResult = await orderModuleService.createOrders(orderData as any);
