@@ -278,12 +278,36 @@ export async function PATCH(
       updateData.email = email;
     }
 
-    if (shipping_address !== undefined) {
-      updateData.shipping_address = shipping_address;
-    }
-
-    if (billing_address !== undefined) {
-      updateData.billing_address = billing_address;
+    // NOTE: We do NOT update cart addresses via cartModuleService.updateCarts()
+    // because Medusa v2 creates empty address records with null fields.
+    // Instead, we store addresses in session for later retrieval.
+    // The addresses will be passed directly when creating the order.
+    
+    if (shipping_address || billing_address) {
+      console.log("💾 Storing addresses in session (not in cart due to Medusa v2 limitation)");
+      
+      // Store addresses in session for later use during payment/order creation
+      if (req.session) {
+        if (shipping_address) {
+          req.session.shipping_address = shipping_address;
+          console.log("✅ Shipping address saved to session:", {
+            hasFirstName: !!shipping_address.first_name,
+            hasAddress: !!shipping_address.address_1,
+            fields: Object.keys(shipping_address),
+          });
+        }
+        
+        if (billing_address) {
+          req.session.billing_address = billing_address;
+          console.log("✅ Billing address saved to session:", {
+            hasFirstName: !!billing_address.first_name,
+            hasAddress: !!billing_address.address_1,
+            fields: Object.keys(billing_address),
+          });
+        }
+      } else {
+        console.warn("⚠️ WARNING: Session not available, addresses cannot be stored");
+      }
     }
 
     // Check if user is authenticated and link customer if needed
@@ -298,9 +322,7 @@ export async function PATCH(
       }
     }
 
-    // Update cart if there are changes
-    // Note: We do NOT include items in the update as they are managed separately
-    // through workflows. Medusa should preserve items automatically.
+    // Update cart if there are changes (excluding addresses)
     if (Object.keys(updateData).length > 0) {
       console.log("📝 Updating cart with data:", updateData);
       

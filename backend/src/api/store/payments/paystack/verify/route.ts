@@ -272,6 +272,38 @@ export async function GET(
       payment_verified_at: new Date().toISOString(),
     };
 
+    // CRITICAL: Store complete addresses in metadata as backup
+    // Since Medusa's createOrders doesn't properly populate nested address fields,
+    // we store the full address data in metadata for reference
+    if (shippingAddress) {
+      orderMetadata.delivery_address = {
+        first_name: shippingAddress.first_name,
+        last_name: shippingAddress.last_name,
+        address_1: shippingAddress.address_1,
+        address_2: shippingAddress.address_2 || '',
+        city: shippingAddress.city,
+        province: shippingAddress.province || '',
+        postal_code: shippingAddress.postal_code || '',
+        country_code: shippingAddress.country_code,
+        phone: shippingAddress.phone,
+      };
+      console.log("💾 Storing delivery address in metadata:", orderMetadata.delivery_address);
+    }
+
+    if (billingAddress) {
+      orderMetadata.billing_info = {
+        first_name: billingAddress.first_name,
+        last_name: billingAddress.last_name,
+        address_1: billingAddress.address_1,
+        address_2: billingAddress.address_2 || '',
+        city: billingAddress.city,
+        province: billingAddress.province || '',
+        postal_code: billingAddress.postal_code || '',
+        country_code: billingAddress.country_code,
+        phone: billingAddress.phone,
+      };
+    }
+
     // Add authorization details if present (card payments)
     if (paymentData.authorization) {
       orderMetadata.payment_authorization_code = paymentData.authorization.authorization_code;
@@ -296,6 +328,7 @@ export async function GET(
         items: orderItems,
         customer_id: customer.id,
         email: customer.email,
+        // Include address objects to create the address records (even if fields are null)
         ...(shippingAddress && { shipping_address: shippingAddress }),
         ...(billingAddress && { billing_address: billingAddress }),
         metadata: orderMetadata,
@@ -326,6 +359,65 @@ export async function GET(
         payment_reference: paymentData.reference,
         completion_method: "payment_verification",
       });
+
+      // CRITICAL FIX: Medusa's createOrders doesn't populate address fields
+      // We need to manually update the address records after order creation
+      if (shippingAddress && order.shipping_address?.id) {
+        try {
+          console.log("🔧 Manually updating shipping address record:", order.shipping_address.id);
+          
+          // Access the internal address service to update the record
+          const orderAddressService = (orderModuleService as any).orderAddressService_;
+          if (orderAddressService) {
+            await orderAddressService.update(order.shipping_address.id, {
+              first_name: shippingAddress.first_name,
+              last_name: shippingAddress.last_name,
+              address_1: shippingAddress.address_1,
+              address_2: shippingAddress.address_2 || '',
+              city: shippingAddress.city,
+              province: shippingAddress.province || '',
+              postal_code: shippingAddress.postal_code || '',
+              country_code: shippingAddress.country_code?.toUpperCase() || 'GH',
+              phone: shippingAddress.phone,
+              company: shippingAddress.company || '',
+            });
+            console.log("✅ Shipping address updated successfully");
+          } else {
+            console.warn("⚠️ orderAddressService not available");
+          }
+        } catch (error) {
+          console.error("❌ Failed to update shipping address:", error);
+          // Don't fail the order creation, addresses are in metadata as backup
+        }
+      }
+
+      if (billingAddress && order.billing_address?.id) {
+        try {
+          console.log("🔧 Manually updating billing address record:", order.billing_address.id);
+          
+          const orderAddressService = (orderModuleService as any).orderAddressService_;
+          if (orderAddressService) {
+            await orderAddressService.update(order.billing_address.id, {
+              first_name: billingAddress.first_name,
+              last_name: billingAddress.last_name,
+              address_1: billingAddress.address_1,
+              address_2: billingAddress.address_2 || '',
+              city: billingAddress.city,
+              province: billingAddress.province || '',
+              postal_code: billingAddress.postal_code || '',
+              country_code: billingAddress.country_code?.toUpperCase() || 'GH',
+              phone: billingAddress.phone,
+              company: billingAddress.company || '',
+            });
+            console.log("✅ Billing address updated successfully");
+          } else {
+            console.warn("⚠️ orderAddressService not available");
+          }
+        } catch (error) {
+          console.error("❌ Failed to update billing address:", error);
+          // Don't fail the order creation, addresses are in metadata as backup
+        }
+      }
     } catch (error) {
       console.error("Error creating order:", error);
       return res.status(500).json({

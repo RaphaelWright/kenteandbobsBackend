@@ -203,21 +203,32 @@ export async function POST(
       billing_address,
     } = req.body as InitializePaymentRequest;
 
+    // Try to get addresses from request body, or fall back to session
+    let finalShippingAddress = shipping_address || req.session?.shipping_address;
+    let finalBillingAddress = billing_address || req.session?.billing_address;
+
     // Log address data if provided
-    if (shipping_address) {
-      console.log("📦 Shipping address provided for payment:", {
-        hasData: !!shipping_address,
-        hasFirstName: !!shipping_address.first_name,
-        fields: Object.keys(shipping_address),
+    if (finalShippingAddress) {
+      console.log("📦 Shipping address for payment:", {
+        source: shipping_address ? "request_body" : "session",
+        hasData: !!finalShippingAddress,
+        hasFirstName: !!finalShippingAddress.first_name,
+        hasAddress: !!finalShippingAddress.address_1,
+        fields: Object.keys(finalShippingAddress),
       });
+    } else {
+      console.warn("⚠️ No shipping address found in request or session");
     }
 
-    if (billing_address) {
-      console.log("📦 Billing address provided for payment:", {
-        hasData: !!billing_address,
-        hasFirstName: !!billing_address.first_name,
-        fields: Object.keys(billing_address),
+    if (finalBillingAddress) {
+      console.log("📦 Billing address for payment:", {
+        source: billing_address ? "request_body" : "session",
+        hasData: !!finalBillingAddress,
+        hasFirstName: !!finalBillingAddress.first_name,
+        fields: Object.keys(finalBillingAddress),
       });
+    } else {
+      console.warn("⚠️ No billing address found in request or session");
     }
 
     // Determine frontend URL for callback
@@ -236,11 +247,18 @@ export async function POST(
         customer_id: customer.id,
         customer_email: customer.email,
         // Include addresses in metadata so they can be retrieved during verification
-        ...(shipping_address && { shipping_address }),
-        ...(billing_address && { billing_address }),
+        ...(finalShippingAddress && { shipping_address: finalShippingAddress }),
+        ...(finalBillingAddress && { billing_address: finalBillingAddress }),
         ...metadata,
       },
     };
+
+    console.log("🚀 Initializing Paystack payment with metadata:", {
+      cart_id: cart.id,
+      amount: paystackAmount,
+      hasShippingAddress: !!finalShippingAddress,
+      hasBillingAddress: !!finalBillingAddress,
+    });
 
     // Initialize payment with Paystack API
     const paystackResponse = await fetch("https://api.paystack.co/transaction/initialize", {
