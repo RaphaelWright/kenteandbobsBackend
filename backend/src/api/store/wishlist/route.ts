@@ -80,6 +80,8 @@ export async function GET(
         "images.*",
         "variants.*",
         "variants.prices.*",
+        "variants.inventory_items.*",
+        "variants.inventory_items.inventory.location_levels.*",
       ],
       filters: {
         id: productIds,
@@ -112,9 +114,22 @@ export async function GET(
       const enrichedMinPrice = minPrice ? enrichPrice(minPrice, currency) : null;
       const enrichedMaxPrice = maxPrice ? enrichPrice(maxPrice, currency) : null;
 
-      // Calculate total quantity based on variant count
-      // Each variant represents one available unit
-      const totalQuantity = product.variants?.length || 0;
+      // Calculate total quantity from actual inventory levels
+      let totalQuantity = 0;
+      
+      product.variants?.forEach((v: any) => {
+        if (v.inventory_items && Array.isArray(v.inventory_items)) {
+          for (const inventoryItem of v.inventory_items) {
+            if (inventoryItem.inventory?.location_levels && Array.isArray(inventoryItem.inventory.location_levels)) {
+              const quantity = inventoryItem.inventory.location_levels.reduce(
+                (sum: number, level: any) => sum + (level.available_quantity || 0),
+                0
+              );
+              totalQuantity += quantity;
+            }
+          }
+        }
+      });
 
       return {
         id: item.id,
@@ -156,7 +171,22 @@ export async function GET(
             ? enrichPrice(variant.prices[0].amount, variant.prices[0].currency_code || "ghs").formatted 
             : null,
           currency: variant.prices?.[0]?.currency_code || "ghs",
-          quantity: 1, // Each variant represents one unit
+          quantity: (() => {
+            // Calculate variant's actual inventory quantity
+            let variantQuantity = 0;
+            if (variant.inventory_items && Array.isArray(variant.inventory_items)) {
+              for (const inventoryItem of variant.inventory_items) {
+                if (inventoryItem.inventory?.location_levels && Array.isArray(inventoryItem.inventory.location_levels)) {
+                  const quantity = inventoryItem.inventory.location_levels.reduce(
+                    (sum: number, level: any) => sum + (level.available_quantity || 0),
+                    0
+                  );
+                  variantQuantity += quantity;
+                }
+              }
+            }
+            return variantQuantity;
+          })(),
         } : null,
       };
     }).filter((item: any) => item !== null);

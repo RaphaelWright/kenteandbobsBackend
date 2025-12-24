@@ -71,6 +71,8 @@ export async function GET(
             "images.*",
             "variants.*",
             "variants.prices.*",
+            "variants.inventory_items.*",
+            "variants.inventory_items.inventory.location_levels.*",
             "categories.*",
             "tags.*",
           ],
@@ -155,7 +157,22 @@ export async function GET(
 
         // Format products
         results.products = products.map((product: any) => {
-          const totalQuantity = product.variants?.length || 0;
+          // Calculate total quantity from actual inventory levels
+          let totalQuantity = 0;
+          
+          product.variants?.forEach((variant: any) => {
+            if (variant.inventory_items && Array.isArray(variant.inventory_items)) {
+              for (const inventoryItem of variant.inventory_items) {
+                if (inventoryItem.inventory?.location_levels && Array.isArray(inventoryItem.inventory.location_levels)) {
+                  const quantity = inventoryItem.inventory.location_levels.reduce(
+                    (sum: number, level: any) => sum + (level.available_quantity || 0),
+                    0
+                  );
+                  totalQuantity += quantity;
+                }
+              }
+            }
+          });
 
           const prices = product.variants
             ?.flatMap((v: any) => v.prices?.map((p: any) => p.amount) || [])
@@ -222,6 +239,20 @@ export async function GET(
                 ? enrichPrice(variantPrice.amount, variantPrice.currency_code || "ghs")
                 : null;
               
+              // Calculate available quantity from inventory_items -> inventory -> location_levels
+              let availableQuantity = 0;
+              if (variant.inventory_items && Array.isArray(variant.inventory_items)) {
+                for (const inventoryItem of variant.inventory_items) {
+                  if (inventoryItem.inventory?.location_levels && Array.isArray(inventoryItem.inventory.location_levels)) {
+                    const quantity = inventoryItem.inventory.location_levels.reduce(
+                      (sum: number, level: any) => sum + (level.available_quantity || 0),
+                      0
+                    );
+                    availableQuantity += quantity;
+                  }
+                }
+              }
+              
               return {
                 id: variant.id,
                 title: variant.title,
@@ -230,7 +261,7 @@ export async function GET(
                 price_display: enrichedVariantPrice?.display_amount || null,
                 price_formatted: enrichedVariantPrice?.formatted || null,
                 currency: variantPrice?.currency_code || "ghs",
-                quantity: 1,
+                quantity: availableQuantity,
               };
             }) || [],
             reviews: {
