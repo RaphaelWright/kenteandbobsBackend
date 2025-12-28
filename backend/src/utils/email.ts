@@ -76,14 +76,24 @@ export async function sendOrderCompletionEmail(
       shippingAddress = order.metadata.delivery_address;
     }
 
-    // Validate shipping address
+    // Create fallback address if none exists
     if (!shippingAddress || !shippingAddress.first_name) {
-      console.warn("⚠️ Cannot send order email: missing shipping address", {
+      console.warn("⚠️ Sending order email with fallback address (no shipping address found)", {
         order_id: order.id,
         has_shipping_address: !!order.shipping_address,
         has_metadata_address: !!order.metadata?.delivery_address,
       });
-      return;
+      
+      // Use a fallback address structure
+      shippingAddress = {
+        first_name: order.customer_id || "Valued",
+        last_name: "Customer",
+        address_1: "Address not provided",
+        city: "",
+        province: "",
+        postal_code: "",
+        country_code: "GH",
+      };
     }
 
     console.log(`📧 Preparing order completion email for order ${order.display_id || order.id}`);
