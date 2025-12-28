@@ -1,13 +1,14 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
-import { ICustomerModuleService } from "@medusajs/framework/types";
+import { ICustomerModuleService, INotificationModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
 import crypto from "crypto";
+import { sendPasswordResetEmail } from "../../../../utils/email";
 
 /**
  * POST /store/auth/forgot-password
- * Request a password reset token
+ * Request a password reset token via email
  * 
- * This endpoint generates a reset token and sends it via email.
+ * This endpoint generates a reset token and sends it via Resend email.
  * It always returns success even if email doesn't exist (security best practice).
  * 
  * Request Body:
@@ -40,6 +41,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
 
     const customerModuleService: ICustomerModuleService = req.scope.resolve(Modules.CUSTOMER);
+    const notificationModuleService: INotificationModuleService = req.scope.resolve(Modules.NOTIFICATION);
 
     // Check if customer exists
     const customers = await customerModuleService.listCustomers({ email });
@@ -64,24 +66,48 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       // Log password reset request (for security audit)
       console.log(`Password reset requested for: ${email} at ${new Date().toISOString()}`);
 
-      // TODO: Send email with reset link
-      // In production, implement email sending here:
-      // const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
-      // await sendPasswordResetEmail(email, resetLink);
+      // Get frontend URL from environment
+      const frontendUrl = process.env.FRONTEND_URL || process.env.STORE_URL || "http://localhost:3000";
 
-      console.log(`Reset token generated for ${email}: ${resetToken}`);
-      console.log(`Token expires at: ${resetTokenExpiry.toISOString()}`);
+      // Send password reset email via Resend
+      try {
+        await sendPasswordResetEmail(
+          notificationModuleService,
+          email,
+          customer.first_name || "there",
+          resetToken,
+          frontendUrl
+        );
+        console.log(`✅ Password reset email sent to ${email}`);
+      } catch (emailError) {
+        console.error("❌ Failed to send password reset email:", emailError);
+        // Clear the token since we couldn't send it
+        await customerModuleService.updateCustomers(customer.id, {
+          metadata: {
+            ...customer.metadata,
+            password_reset_token: null,
+            password_reset_expiry: null,
+          },
+        });
+        
+        return res.status(500).json({
+          error: "Internal Server Error",
+          message: "Failed to send password reset email. Please try again later",
+        });
+      }
       
-      // In development, you might want to return the token for testing
-      // Remove this in production!
+      // In development, log the reset link for testing
       if (process.env.NODE_ENV === "development") {
-        console.log(`\n=== PASSWORD RESET TOKEN (DEV ONLY) ===`);
+        const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
+        console.log(`\n=== PASSWORD RESET LINK (DEV ONLY) ===`);
         console.log(`Email: ${email}`);
         console.log(`Token: ${resetToken}`);
-        console.log(`Reset URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`);
+        console.log(`Reset URL: ${resetUrl}`);
         console.log(`Expires: ${resetTokenExpiry.toISOString()}`);
-        console.log(`=====================================\n`);
+        console.log(`=======================================\n`);
       }
+    } else {
+      console.log(`Password reset requested for non-existent email: ${email}`);
     }
 
     // Always return success (prevents email enumeration attacks)
@@ -92,9 +118,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     });
 
     // Note: In production, you should:
-    // 1. Send an actual email with the reset link
-    // 2. Implement rate limiting (e.g., max 5 requests per hour per IP)
-    // 3. Log suspicious patterns (multiple requests for different emails from same IP)
+    // 1. Implement rate limiting (e.g., max 5 requests per hour per IP)
+    // 2. Log suspicious patterns (multiple requests for different emails from same IP)
+    // 3. Consider adding CAPTCHA for additional security
   } catch (error) {
     console.error("Forgot password error:", error);
     

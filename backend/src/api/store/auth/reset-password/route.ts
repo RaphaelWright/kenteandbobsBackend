@@ -1,6 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
-import { IAuthModuleService, ICustomerModuleService } from "@medusajs/framework/types";
+import { IAuthModuleService, ICustomerModuleService, INotificationModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
+import { sendPasswordResetConfirmationEmail } from "../../../../utils/email";
 
 /**
  * Validate password strength
@@ -110,6 +111,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
     const customerModuleService: ICustomerModuleService = req.scope.resolve(Modules.CUSTOMER);
     const authModuleService: IAuthModuleService = req.scope.resolve(Modules.AUTH);
+    const notificationModuleService: INotificationModuleService = req.scope.resolve(Modules.NOTIFICATION);
 
     // Find customer by email
     const customers = await customerModuleService.listCustomers({ email });
@@ -220,6 +222,19 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     // Log successful password reset
     console.log(`Password reset completed for: ${email} at ${new Date().toISOString()}`);
 
+    // Send confirmation email
+    try {
+      await sendPasswordResetConfirmationEmail(
+        notificationModuleService,
+        email,
+        customer.first_name || "there"
+      );
+      console.log(`✅ Password reset confirmation email sent to ${email}`);
+    } catch (emailError) {
+      console.error("❌ Failed to send confirmation email:", emailError);
+      // Don't fail the request if email fails - password was already reset
+    }
+
     // Success response
     res.status(200).json({
       message: "Password has been reset successfully. You can now log in with your new password",
@@ -227,10 +242,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     });
 
     // Note: In production, you should:
-    // 1. Send confirmation email that password was changed
-    // 2. Invalidate all existing sessions for this user
-    // 3. Log this event in security audit table
-    // 4. Consider requiring re-verification if suspicious activity detected
+    // 1. Invalidate all existing sessions for this user
+    // 2. Log this event in security audit table
+    // 3. Consider requiring re-verification if suspicious activity detected
   } catch (error) {
     console.error("Reset password error:", error);
 
