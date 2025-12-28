@@ -53,6 +53,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       const resetToken = crypto.randomBytes(32).toString("hex");
       const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
 
+      console.log(`🔑 Generated token for ${email}: ${resetToken}`);
+      console.log(`🔑 Token length: ${resetToken.length}`);
+
       // Store token in customer metadata
       await customerModuleService.updateCustomers(customer.id, {
         metadata: {
@@ -62,6 +65,17 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           password_reset_requested_at: new Date().toISOString(),
         },
       });
+
+      // Verify token was saved
+      const verifyCustomer = await customerModuleService.retrieveCustomer(customer.id);
+      const savedToken = verifyCustomer.metadata?.password_reset_token;
+      console.log(`✅ Token saved to DB: ${savedToken ? 'YES' : 'NO'}`);
+      console.log(`✅ Saved token matches: ${savedToken === resetToken}`);
+      if (savedToken && savedToken !== resetToken) {
+        console.log(`⚠️ WARNING: Token mismatch!`);
+        console.log(`   Generated: "${resetToken}"`);
+        console.log(`   Saved:     "${savedToken}"`);
+      }
 
       // Log password reset request (for security audit)
       console.log(`Password reset requested for: ${email} at ${new Date().toISOString()}`);

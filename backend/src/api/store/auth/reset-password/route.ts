@@ -126,11 +126,21 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     const customer = customers[0];
     const metadata = customer.metadata || {};
 
+    console.log(`🔍 Password reset attempt for: ${email}`);
+    console.log(`📋 Available metadata keys:`, Object.keys(metadata));
+
     // Validate token
     const storedToken = metadata.password_reset_token as string | undefined;
     const tokenExpiry = metadata.password_reset_expiry as string | undefined;
 
+    console.log(`🔑 Received token: ${token}`);
+    console.log(`🔑 Received token length: ${token.length}`);
+    console.log(`💾 Stored token: ${storedToken || 'NOT FOUND'}`);
+    console.log(`💾 Stored token length: ${storedToken?.length || 0}`);
+    console.log(`⏰ Token expiry: ${tokenExpiry || 'NOT FOUND'}`);
+
     if (!storedToken || !tokenExpiry) {
+      console.log(`❌ Token or expiry missing in metadata`);
       return res.status(400).json({
         error: "Bad Request",
         message: "Invalid or expired reset token",
@@ -138,8 +148,13 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
 
     // Check if token matches
+    console.log(`🔍 Comparing tokens:`);
+    console.log(`   Stored:   "${storedToken}"`);
+    console.log(`   Received: "${token}"`);
+    console.log(`   Match: ${storedToken === token}`);
+    
     if (storedToken !== token) {
-      console.log(`Invalid token attempt for ${email}`);
+      console.log(`❌ Token mismatch for ${email}`);
       return res.status(400).json({
         error: "Bad Request",
         message: "Invalid or expired reset token",
