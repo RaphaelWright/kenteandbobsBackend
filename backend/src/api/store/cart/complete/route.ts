@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
-import { ICartModuleService, IOrderModuleService, ICustomerModuleService, IAuthModuleService } from "@medusajs/framework/types";
+import { ICartModuleService, IOrderModuleService, ICustomerModuleService, IAuthModuleService, INotificationModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
 import { formatCartResponse, getCartId, getCustomerFromAuth } from "../helpers";
 import {
@@ -9,6 +9,7 @@ import {
   validatePaymentData,
   convertDeliveryToAddress,
 } from "../../../../utils/checkout-validation";
+import { sendOrderCompletionEmail } from "../../../../utils/email";
 
 interface CheckoutRequest {
   cart_id?: string;
@@ -289,6 +290,15 @@ export async function POST(
 
       if (!order) {
         throw new Error("Failed to create order - no order returned");
+      }
+
+      // Send order completion email
+      try {
+        const notificationModuleService: INotificationModuleService = req.scope.resolve(Modules.NOTIFICATION);
+        await sendOrderCompletionEmail(notificationModuleService, order);
+      } catch (emailError) {
+        console.error("❌ Failed to send order completion email (non-fatal):", emailError);
+        // Don't fail the order if email fails
       }
 
       // Format order response

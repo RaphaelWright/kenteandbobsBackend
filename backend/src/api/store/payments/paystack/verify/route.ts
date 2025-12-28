@@ -1,7 +1,8 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
-import { ICartModuleService, IOrderModuleService, ICustomerModuleService } from "@medusajs/framework/types";
+import { ICartModuleService, IOrderModuleService, ICustomerModuleService, INotificationModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
 import { PAYSTACK_SECRET_KEY } from "../../../../../lib/constants";
+import { sendOrderCompletionEmail } from "../../../../../utils/email";
 
 /**
  * GET /store/payments/paystack/verify
@@ -468,6 +469,15 @@ export async function GET(
     });
 
     const completeOrder = orders[0];
+
+    // Send order completion email
+    try {
+      const notificationModuleService: INotificationModuleService = req.scope.resolve(Modules.NOTIFICATION);
+      await sendOrderCompletionEmail(notificationModuleService, completeOrder);
+    } catch (emailError) {
+      console.error("❌ Failed to send order completion email (non-fatal):", emailError);
+      // Don't fail the order if email fails
+    }
 
     // Format response
     const formattedOrder = {
