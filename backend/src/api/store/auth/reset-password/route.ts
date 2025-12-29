@@ -176,21 +176,28 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     // Find auth identity by email
     // Note: Medusa's listAuthIdentities has limited filter support
     // We need to list all and filter manually
+    console.log(`🔍 Looking for auth identity with email: ${email}`);
     const allAuthIdentities = await authModuleService.listAuthIdentities();
+    console.log(`📋 Total auth identities found: ${allAuthIdentities.length}`);
 
     // Filter for emailpass provider and matching email
     const authIdentity = allAuthIdentities.find(
-      (identity: any) => 
-        identity.provider === "emailpass" && 
-        identity.entity_id === email
+      (identity: any) => {
+        console.log(`  Checking identity: provider=${identity.provider}, entity_id=${identity.entity_id}`);
+        return identity.provider === "emailpass" && identity.entity_id === email;
+      }
     );
 
     if (!authIdentity) {
+      console.log(`❌ No auth identity found for email: ${email}`);
+      console.log(`   Searched for: provider=emailpass, entity_id=${email}`);
       return res.status(400).json({
         error: "Bad Request",
         message: "Invalid or expired reset token",
       });
     }
+
+    console.log(`✅ Auth identity found for ${email}`);
 
     // Update password
     // Note: We need to delete and recreate the auth identity because updateAuthIdentities
