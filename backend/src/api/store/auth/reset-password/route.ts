@@ -174,10 +174,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
 
     // Find auth identity by email
-    // Note: Medusa's listAuthIdentities has limited filter support
-    // We need to list all and filter manually
+    // Note: Medusa's listAuthIdentities needs explicit config to load fields
     console.log(`🔍 Looking for auth identity with email: ${email}`);
-    const allAuthIdentities = await authModuleService.listAuthIdentities();
+    const allAuthIdentities = await authModuleService.listAuthIdentities(
+      {},
+      {
+        select: ["id", "provider", "entity_id", "provider_metadata", "user_metadata", "app_metadata"]
+      }
+    );
     console.log(`📋 Total auth identities found: ${allAuthIdentities.length}`);
 
     // Filter for emailpass provider and matching email
