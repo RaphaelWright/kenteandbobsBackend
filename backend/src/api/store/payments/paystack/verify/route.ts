@@ -145,22 +145,25 @@ export async function GET(
       }, 0);
     }
 
-    // Check if cart total was converted from cedis to pesewas during initialization
-    // This is to handle the temporary fix in initialize endpoint
+    // Convert cart total from cedis to pesewas for comparison with Paystack amount
+    // Database stores prices in cedis, but Paystack uses pesewas
     let expectedPaystackAmount = cartTotal;
-    const likelyInCedis = cartTotal > 0 && cartTotal < 10000 && cart.currency_code?.toLowerCase() === 'ghs';
     
-    if (likelyInCedis) {
-      expectedPaystackAmount = cartTotal * 100;
+    if (cart.currency_code?.toLowerCase() === 'ghs') {
+      expectedPaystackAmount = Math.round(cartTotal * 100);
+      console.log("💰 Verifying payment amount:", {
+        cart_total_cedis: cartTotal,
+        expected_pesewas: expectedPaystackAmount,
+        received_pesewas: paymentData.amount,
+      });
     }
 
     // Verify payment amount matches cart total
     if (paymentData.amount !== expectedPaystackAmount) {
       console.warn("Payment amount mismatch:", {
-        payment_amount: paymentData.amount,
-        expected_amount: expectedPaystackAmount,
-        cart_total: cartTotal,
-        converted: likelyInCedis,
+        payment_amount_pesewas: paymentData.amount,
+        expected_amount_pesewas: expectedPaystackAmount,
+        cart_total_cedis: cartTotal,
       });
       // Log warning but don't fail - amount discrepancies can happen with fees
     }

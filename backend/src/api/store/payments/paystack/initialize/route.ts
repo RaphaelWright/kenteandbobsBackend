@@ -173,25 +173,25 @@ export async function POST(
       });
     }
 
-    // TEMPORARY FIX: Check if prices in database are in cedis format
-    // If cart total seems suspiciously low (< 1000), multiply by 100
-    // This handles the case where database has cedis instead of pesewas
+    // Convert cart total from cedis to pesewas for Paystack
+    // Database stores prices in cedis, but Paystack requires pesewas
     let paystackAmount = cartTotal;
-    const likelyInCedis = cartTotal > 0 && cartTotal < 10000 && cart.currency_code?.toLowerCase() === 'ghs';
     
-    if (likelyInCedis) {
-      console.warn("⚠️ Cart total appears to be in cedis format, converting to pesewas for Paystack");
-      paystackAmount = cartTotal * 100;
+    if (cart.currency_code?.toLowerCase() === 'ghs') {
+      // Convert cedis to pesewas (multiply by 100)
+      paystackAmount = Math.round(cartTotal * 100);
+      console.log("💰 Converting cedis to pesewas for Paystack:", {
+        cart_total_cedis: cartTotal,
+        paystack_amount_pesewas: paystackAmount,
+      });
     }
 
     console.log("Paystack payment amount:", {
       cart_id: cartId,
-      original_amount: cartTotal,
-      paystack_amount: paystackAmount,
-      amount_in_cedis: (paystackAmount / 100).toFixed(2),
+      cart_total_cedis: cartTotal,
+      paystack_amount_pesewas: paystackAmount,
       currency: cart.currency_code,
       items_count: cart.items.length,
-      converted: likelyInCedis,
     });
 
     // Get request data

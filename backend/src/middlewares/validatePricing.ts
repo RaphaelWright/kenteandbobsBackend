@@ -1,10 +1,10 @@
 /**
  * Middleware to validate and ensure pricing consistency
- * Ensures all prices in requests are in pesewas (smallest currency unit)
+ * Ensures all prices in requests are valid numbers in cedis
  */
 
 import { MedusaRequest, MedusaResponse, MedusaNextFunction } from "@medusajs/framework";
-import { isValidPesewasAmount, toSmallestCurrencyUnit } from "../utils/currency";
+import { toSmallestCurrencyUnit } from "../utils/currency";
 
 interface PriceData {
   amount?: number;
@@ -17,7 +17,7 @@ interface PriceData {
 
 /**
  * Middleware to validate product/variant pricing in requests
- * Ensures all price amounts are in smallest currency unit (pesewas for GHS)
+ * Ensures all price amounts are valid numbers in cedis
  */
 export function validatePricing() {
   return async (
@@ -51,6 +51,7 @@ export function validatePricing() {
 
 /**
  * Recursively validate price data in request body
+ * Prices should be valid numbers in cedis (can be decimal like 2400 or 1.30)
  */
 function validatePriceData(data: any, path: string = "body"): void {
   if (!data || typeof data !== 'object') {
@@ -58,25 +59,29 @@ function validatePriceData(data: any, path: string = "body"): void {
   }
 
   // If this object has an amount field, validate it
-  if ('amount' in data && typeof data.amount === 'number') {
-    const currencyCode = data.currency_code || 'ghs';
-    
-    // Check if amount is a valid integer (pesewas must be whole numbers)
-    if (!isValidPesewasAmount(data.amount)) {
+  if ('amount' in data) {
+    // Check if amount is a valid number
+    if (typeof data.amount !== 'number' || isNaN(data.amount) || !isFinite(data.amount)) {
       throw new Error(
         `Invalid price amount at ${path}.amount: ${data.amount}. ` +
-        `Prices must be in smallest currency unit (pesewas for GHS). ` +
-        `Example: GH₵ 1.30 should be stored as 130 pesewas, not 1.3. ` +
-        `If you're sending prices in major currency unit (cedis), please convert them first.`
+        `Prices must be valid numbers in cedis. Example: GH₵ 2,400.00 should be 2400`
       );
     }
 
-    // Sanity check: prices shouldn't be suspiciously low
-    // (e.g., if someone accidentally sent cedis instead of pesewas)
-    if (currencyCode.toLowerCase() === 'ghs' && data.amount > 0 && data.amount < 50) {
+    // Check if amount is non-negative
+    if (data.amount < 0) {
+      throw new Error(
+        `Invalid price amount at ${path}.amount: ${data.amount}. ` +
+        `Prices cannot be negative.`
+      );
+    }
+
+    // Sanity check: warn about unusually high prices
+    const currencyCode = (data.currency_code || 'ghs').toLowerCase();
+    if (currencyCode === 'ghs' && data.amount > 1000000) {
       console.warn(
-        `⚠️ Suspiciously low GHS price at ${path}.amount: ${data.amount} pesewas (GH₵ ${data.amount / 100}). ` +
-        `This might indicate cedis were sent instead of pesewas. Please verify.`
+        `⚠️ Unusually high GHS price at ${path}.amount: GH₵ ${data.amount.toLocaleString()}. ` +
+        `Please verify this is correct.`
       );
     }
   }
@@ -115,15 +120,12 @@ function validatePriceData(data: any, path: string = "body"): void {
 
 /**
  * Helper middleware to convert prices from cedis to pesewas in request body
- * Use this for admin endpoints where prices are submitted in cedis
  * 
- * Automatically detects cedis input by:
- * 1. Checking for _pricesInCedis flag (explicit)
- * 2. Detecting prices that appear to be in cedis (heuristic):
- *    - GHS prices < 1000 (likely cedis, not pesewas)
- *    - Prices with decimal places (e.g., 130.50)
+ * DEPRECATED: This middleware is no longer needed as prices are now stored in cedis.
+ * Kept for backward compatibility but effectively does nothing.
  * 
- * IMPORTANT: Apply this middleware BEFORE validatePricing
+ * Prices should be submitted in cedis (e.g., 2400 for GH₵ 2,400.00).
+ * Conversion to pesewas only happens at payment processing time.
  */
 export function convertCedisToPesewas() {
   return async (
@@ -131,30 +133,9 @@ export function convertCedisToPesewas() {
     res: MedusaResponse,
     next: MedusaNextFunction
   ) => {
-    try {
-      // Only convert POST, PUT, PATCH requests
-      if (!['POST', 'PUT', 'PATCH'].includes(req.method)) {
-        return next();
-      }
-
-      const body = req.body as any;
-
-      // Check for explicit flag OR auto-detect cedis input
-      const shouldConvert = body._pricesInCedis === true || shouldAutoConvert(body);
-      
-      if (shouldConvert) {
-        convertPriceData(body, body._pricesInCedis === true);
-        delete body._pricesInCedis; // Remove the flag if present
-      }
-
-      next();
-    } catch (error) {
-      console.error("Currency conversion error:", error);
-      res.status(400).json({
-        error: "Currency conversion failed",
-        message: error.message,
-      });
-    }
+    // No conversion needed - prices are stored in cedis
+    // This middleware is kept for backward compatibility only
+    next();
   };
 }
 

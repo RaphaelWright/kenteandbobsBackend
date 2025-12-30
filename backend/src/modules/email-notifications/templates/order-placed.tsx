@@ -17,24 +17,18 @@ export interface OrderPlacedTemplateProps {
 }
 
 export const isOrderPlacedTemplateData = (data: any): data is OrderPlacedTemplateProps =>
-  typeof data.order === 'object' && typeof data.shippingAddress === 'object'
+  typeof data === 'object' && 
+  typeof data.order === 'object' && 
+  data.order !== null &&
+  typeof data.shippingAddress === 'object' &&
+  data.shippingAddress !== null
 
 export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
   PreviewProps: OrderPlacedPreviewProps
 } = ({ order, shippingAddress, preview = 'Your order has been placed!' }) => {
   // Safely access order properties with fallbacks
   const orderDisplayId = order.display_id || order.id || 'N/A';
-  
-  // Convert BigNumber to number/string for display
-  let orderTotal: number;
-  const rawTotal = order.summary?.raw_current_order_total?.value || order.total || 0;
-  if (typeof rawTotal === 'object' && rawTotal !== null && 'toNumber' in rawTotal) {
-    // It's a BigNumber
-    orderTotal = (rawTotal as any).toNumber();
-  } else {
-    orderTotal = Number(rawTotal) || 0;
-  }
-  
+  const orderTotal = order.summary?.raw_current_order_total?.value || order.total || 0;
   const orderCurrency = order.currency_code || 'GHS';
   const orderDate = order.created_at ? new Date(order.created_at).toLocaleDateString() : new Date().toLocaleDateString();
   const orderItems = order.items || [];
@@ -64,7 +58,7 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
           Order Date: {orderDate}
         </Text>
         <Text style={{ margin: '0 0 20px' }}>
-          Total: {orderTotal} {orderCurrency.toUpperCase()}
+          Total: {orderCurrency.toUpperCase()} {orderTotal.toFixed(2)}
         </Text>
 
         <Hr style={{ margin: '20px 0' }} />
@@ -114,29 +108,18 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
                 <Text style={{ fontWeight: 'bold' }}>Quantity</Text>
                 <Text style={{ fontWeight: 'bold' }}>Price</Text>
               </div>
-              {orderItems.map((item: any) => {
-                // Convert item price to number
-                let itemPrice: number;
-                const rawPrice = item.unit_price || 0;
-                if (typeof rawPrice === 'object' && rawPrice !== null && 'toNumber' in rawPrice) {
-                  itemPrice = (rawPrice as any).toNumber();
-                } else {
-                  itemPrice = Number(rawPrice) || 0;
-                }
-                
-                return (
-                  <div key={item.id} style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    padding: '8px',
-                    borderBottom: '1px solid #ddd'
-                  }}>
-                    <Text>{item.title || item.product_title || 'Item'}{item.subtitle ? ` - ${item.subtitle}` : ''}</Text>
-                    <Text>{item.quantity || 1}</Text>
-                    <Text>{itemPrice} {orderCurrency.toUpperCase()}</Text>
-                  </div>
-                );
-              })}
+              {orderItems.map((item: any) => (
+                <div key={item.id} style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  padding: '8px',
+                  borderBottom: '1px solid #ddd'
+                }}>
+                  <Text>{item.title || item.product_title || 'Item'}{item.subtitle ? ` - ${item.subtitle}` : ''}</Text>
+                  <Text>{item.quantity || 1}</Text>
+                  <Text>{orderCurrency.toUpperCase()} {(item.unit_price || 0).toFixed(2)}</Text>
+                </div>
+              ))}
             </div>
           </>
         )}

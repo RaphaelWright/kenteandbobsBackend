@@ -98,25 +98,55 @@ export async function sendOrderCompletionEmail(
 
     console.log(`📧 Preparing order completion email for order ${order.display_id || order.id}`);
 
+    // Convert amounts from pesewas to cedis (divide by 100)
+    const convertToCedis = (amount: any): number => {
+      if (typeof amount === 'object' && amount !== null && 'toNumber' in amount) {
+        return (amount as any).toNumber() / 100;
+      }
+      return (Number(amount) || 0) / 100;
+    };
+
+    // Prepare email data with safe defaults and convert currency
+    const emailData = {
+      order: {
+        id: order.id,
+        display_id: order.display_id || order.id,
+        created_at: order.created_at || new Date().toISOString(),
+        email: order.email,
+        currency_code: order.currency_code || 'GHS',
+        items: Array.isArray(order.items) 
+          ? order.items.map((item: any) => ({
+              ...item,
+              unit_price: convertToCedis(item.unit_price),
+              total: convertToCedis(item.total),
+            }))
+          : [],
+        total: convertToCedis(order.total),
+        summary: {
+          raw_current_order_total: {
+            value: convertToCedis(order.total),
+          },
+        },
+      },
+      shippingAddress: shippingAddress,
+      emailOptions: {
+        subject: `Order Confirmation #${order.display_id || order.id} - Kentenbobs`,
+      },
+    };
+
+    console.log(`📧 Email data prepared:`, {
+      to: order.email,
+      order_id: emailData.order.id,
+      display_id: emailData.order.display_id,
+      items_count: emailData.order.items.length,
+      has_shipping_address: !!shippingAddress?.first_name,
+    });
+
     await notificationModuleService.createNotifications({
       to: order.email,
       channel: "email",
       template: "order-placed",
-      data: {
-        order: {
-          ...order,
-          display_id: order.display_id || order.id,
-          summary: {
-            raw_current_order_total: {
-              value: order.total || 0,
-            },
-          },
-        },
-        shippingAddress: shippingAddress,
-        emailOptions: {
-          subject: `Order Confirmation #${order.display_id || order.id} - Kentenbobs`,
-        },
-      },
+      data: emailData,
     });
 
     console.log(`✅ Order completion email sent to ${order.email} for order ${order.display_id || order.id}`);

@@ -2,14 +2,14 @@
  * Currency Conversion Utilities
  * 
  * Convention:
- * - Database and Medusa store all prices in PESEWAS (smallest currency unit)
- * - Admin panel displays prices in GHANA CEDIS for user convenience
- * - Frontend displays prices in GHANA CEDIS for customers
- * - Payment gateways (Paystack) receive prices in PESEWAS
+ * - Database stores all prices in GHANA CEDIS (e.g., 2400 = GH₵ 2,400.00)
+ * - API responses return prices in GHANA CEDIS
+ * - Payment gateways (Paystack) receive prices in PESEWAS (converted at payment time)
  * 
  * Examples:
- * - GH₵ 1.30 = 130 pesewas (stored in database)
- * - GH₵ 99.99 = 9999 pesewas (stored in database)
+ * - GH₵ 1.30 = 1.30 (stored in database)
+ * - GH₵ 2,400.00 = 2400 (stored in database)
+ * - When processing payment: 2400 cedis → 240000 pesewas (sent to Paystack)
  */
 
 /**
@@ -183,11 +183,11 @@ export function formatSmallestCurrencyUnit(
  * Price data structure for API responses
  */
 export interface PriceResponse {
-  /** Amount in smallest currency unit (pesewas, cents, etc.) - raw database value */
+  /** Amount in cedis - raw database value (e.g., 2400 = GH₵ 2,400.00) */
   amount: number;
-  /** Amount in major currency unit (cedis, dollars, etc.) - for display */
+  /** Amount in cedis - same as amount, for display */
   display_amount: number;
-  /** Formatted string with currency symbol (e.g., "GH₵ 1.30") */
+  /** Formatted string with currency symbol (e.g., "GH₵ 2,400.00") */
   formatted: string;
   /** Currency code (e.g., "ghs", "usd") */
   currency_code: string;
@@ -234,16 +234,20 @@ export function processAdminPriceInput(priceData: {
 
 /**
  * Convert raw price amount to enriched price response
- * @param amount Amount in smallest currency unit (from database)
+ * @param amount Amount in cedis (from database) - e.g., 2400 means GH₵ 2,400.00
  * @param currencyCode Currency code
  * @returns Enriched price object with display values
  */
 export function enrichPrice(amount: number, currencyCode: string = 'ghs'): PriceResponse {
-  const display_amount = fromSmallestCurrencyUnit(amount, currencyCode);
-  const formatted = formatSmallestCurrencyUnit(amount, currencyCode, true);
+  // Database stores values in cedis, so no conversion needed
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : Number(amount);
+  const display_amount = isNaN(numAmount) || !isFinite(numAmount) ? 0 : numAmount;
+  
+  // Format the amount with currency symbol
+  const formatted = formatCedis(display_amount, true);
   
   return {
-    amount,
+    amount: display_amount,
     display_amount,
     formatted,
     currency_code: currencyCode.toLowerCase(),
