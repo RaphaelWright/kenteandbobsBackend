@@ -25,7 +25,7 @@ export async function GET(
     } = req.query;
 
     // Fetch products using Medusa's standard approach with inventory data
-    const { data: products } = await query.graph({
+    const { data: products, metadata } = await query.graph({
       entity: "product",
       fields: [
         "id",
@@ -227,7 +227,8 @@ export async function GET(
 
     res.json({
       products: formattedProducts,
-      count: formattedProducts.length,
+      count: metadata?.count || formattedProducts.length,
+      total: metadata?.count || formattedProducts.length,
       offset: Number(offset),
       limit: Number(limit),
     });
