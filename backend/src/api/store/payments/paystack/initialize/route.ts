@@ -296,7 +296,7 @@ export async function POST(
         amount: paystackAmount,
         original_cart_amount: cartTotal,
         currency: cart.currency_code?.toLowerCase() || "ghs",
-        converted_for_payment: likelyInCedis,
+        converted_to_pesewas: cart.currency_code?.toLowerCase() === 'ghs',
       },
     });
   } catch (error) {

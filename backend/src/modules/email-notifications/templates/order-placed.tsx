@@ -58,7 +58,7 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
           Order Date: {orderDate}
         </Text>
         <Text style={{ margin: '0 0 20px' }}>
-          Total: {orderCurrency.toUpperCase()} {orderTotal.toFixed(2)}
+          Total: {orderCurrency.toUpperCase()} {typeof orderTotal === 'number' ? orderTotal.toFixed(2) : Number(orderTotal).toFixed(2)}
         </Text>
 
         <Hr style={{ margin: '20px 0' }} />
