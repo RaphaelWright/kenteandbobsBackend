@@ -120,7 +120,7 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
                   Subtotal: {orderCurrency.toUpperCase()} {String(Number(item?.total || 0).toFixed(2))}
                 </Text>
               </Section>
-            ))}}
+            ))}
           </Section>
         )}
 
