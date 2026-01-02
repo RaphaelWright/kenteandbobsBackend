@@ -92,15 +92,23 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
             </Text>
 
             {orderItems.map((item: any) => (
-              <Section key={item?.id || Math.random()} style={{ borderBottom: '1px solid #ddd', paddingBottom: '10px', marginBottom: '10px' }}>
-                <Text style={{ margin: '5px 0', fontWeight: 'bold' }}>
-                  {String(item?.title || item?.product_title || 'Item')}{item?.subtitle ? ` - ${String(item.subtitle)}` : ''}
+              <Section key={item?.id || Math.random()} style={{ borderBottom: '1px solid #ddd', paddingBottom: '15px', marginBottom: '15px' }}>
+                <Text style={{ margin: '0 0 8px', fontWeight: 'bold', fontSize: '16px', color: '#333' }}>
+                  {String(item?.title || item?.product_title || 'Item')}
                 </Text>
-                <Text style={{ margin: '5px 0' }}>
+                {item?.subtitle && (
+                  <Text style={{ margin: '0 0 8px', fontSize: '14px', color: '#666' }}>
+                    {String(item.subtitle)}
+                  </Text>
+                )}
+                <Text style={{ margin: '0 0 5px', fontSize: '14px' }}>
                   Quantity: {String(item?.quantity || 1)}
                 </Text>
-                <Text style={{ margin: '5px 0' }}>
-                  Price: {orderCurrency.toUpperCase()} {String(Number(item?.unit_price || 0).toFixed(2))}
+                <Text style={{ margin: '0 0 5px', fontSize: '14px' }}>
+                  Unit Price: {orderCurrency.toUpperCase()} {String(Number(item?.unit_price || 0).toFixed(2))}
+                </Text>
+                <Text style={{ margin: '5px 0', fontSize: '14px', fontWeight: 'bold', color: '#d32f2f' }}>
+                  Subtotal: {orderCurrency.toUpperCase()} {String(Number(item?.total || 0).toFixed(2))}
                 </Text>
               </Section>
             ))}

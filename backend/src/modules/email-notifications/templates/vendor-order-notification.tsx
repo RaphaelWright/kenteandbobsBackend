@@ -65,6 +65,37 @@ export const VendorOrderNotificationTemplate: React.FC<VendorOrderNotificationPr
 
         <Hr style={{ margin: '20px 0' }} />
 
+        <Text style={{ fontSize: '18px', fontWeight: 'bold', margin: '20px 0 15px' }}>
+          Products Ordered
+        </Text>
+
+        {order.items && order.items.length > 0 ? (
+          order.items.map((item: any) => (
+            <Section key={item?.id || Math.random()} style={{ marginBottom: '15px', paddingBottom: '15px', borderBottom: '1px solid #eee' }}>
+              <Text style={{ margin: '0 0 5px', fontWeight: 'bold', fontSize: '16px', color: '#333' }}>
+                {String(item?.title || 'Product')}
+              </Text>
+              {item?.subtitle && (
+                <Text style={{ margin: '0 0 5px', fontSize: '14px', color: '#666' }}>
+                  {String(item.subtitle)}
+                </Text>
+              )}
+              <Text style={{ margin: '0 0 5px', fontSize: '14px' }}>
+                Quantity: {String(item?.quantity || 1)}
+              </Text>
+              <Text style={{ margin: '0 0 5px', fontSize: '14px' }}>
+                Price: {String(orderCurrency.toUpperCase())} {String(Number(item?.unit_price || 0).toFixed(2))}
+              </Text>
+            </Section>
+          ))
+        ) : (
+          <Text style={{ margin: '0 0 20px', color: '#666' }}>
+            No items in this order
+          </Text>
+        )}
+
+        <Hr style={{ margin: '20px 0' }} />
+
         <Text style={{ fontSize: '18px', fontWeight: 'bold', margin: '20px 0 10px' }}>
           Customer Information
         </Text>

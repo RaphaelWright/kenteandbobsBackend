@@ -209,7 +209,16 @@ export async function sendVendorOrderNotificationEmail(
         created_at: order.created_at || new Date().toISOString(),
         email: order.email,
         currency_code: order.currency_code || 'GHS',
-        items: Array.isArray(order.items) ? order.items : [],
+        items: Array.isArray(order.items)
+          ? order.items.map((item: any) => ({
+              id: item.id,
+              title: item.title || item.product_title || 'Item',
+              subtitle: item.subtitle || '',
+              quantity: item.quantity || 1,
+              unit_price: typeof item.unit_price === 'number' ? item.unit_price : Number(item.unit_price) || 0,
+              total: typeof item.total === 'number' ? item.total : Number(item.total) || 0,
+            }))
+          : [],
         total: typeof order.total === 'number' ? order.total : Number(order.total) || 0,
         summary: order.summary || { raw_current_order_total: { value: order.total || 0 } },
       },
