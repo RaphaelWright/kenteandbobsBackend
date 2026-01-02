@@ -1,4 +1,4 @@
-import { Text, Section, Hr, Container, Row, Column } from '@react-email/components'
+import { Text, Section, Hr } from '@react-email/components'
 import * as React from 'react'
 import { Base } from './base'
 import { OrderDTO, OrderAddressDTO } from '@medusajs/framework/types'
@@ -91,20 +91,19 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
               Order Items
             </Text>
 
-            <Container style={{ border: '1px solid #ddd', borderCollapse: 'collapse' }}>
-              <Row style={{ backgroundColor: '#f2f2f2', borderBottom: '1px solid #ddd' }}>
-                <Column style={{ padding: '8px', fontWeight: 'bold', width: '40%' }}>Item</Column>
-                <Column style={{ padding: '8px', fontWeight: 'bold', width: '30%', textAlign: 'center' }}>Quantity</Column>
-                <Column style={{ padding: '8px', fontWeight: 'bold', width: '30%', textAlign: 'right' }}>Price</Column>
-              </Row>
-              {orderItems.map((item: any) => (
-                <Row key={item.id} style={{ borderBottom: '1px solid #ddd' }}>
-                  <Column style={{ padding: '8px', width: '40%' }}>{item.title || item.product_title || 'Item'}{item.subtitle ? ` - ${item.subtitle}` : ''}</Column>
-                  <Column style={{ padding: '8px', width: '30%', textAlign: 'center' }}>{item.quantity || 1}</Column>
-                  <Column style={{ padding: '8px', width: '30%', textAlign: 'right' }}>{orderCurrency.toUpperCase()} {(item.unit_price || 0).toFixed(2)}</Column>
-                </Row>
-              ))}
-            </Container>
+            {orderItems.map((item: any) => (
+              <Section key={item.id} style={{ borderBottom: '1px solid #ddd', paddingBottom: '10px', marginBottom: '10px' }}>
+                <Text style={{ margin: '5px 0', fontWeight: 'bold' }}>
+                  {item.title || item.product_title || 'Item'}{item.subtitle ? ` - ${item.subtitle}` : ''}
+                </Text>
+                <Text style={{ margin: '5px 0' }}>
+                  Quantity: {item.quantity || 1}
+                </Text>
+                <Text style={{ margin: '5px 0' }}>
+                  Price: {orderCurrency.toUpperCase()} {(item.unit_price || 0).toFixed(2)}
+                </Text>
+              </Section>
+            ))}
           </Section>
         )}
 
