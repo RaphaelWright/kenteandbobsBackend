@@ -108,14 +108,7 @@ export class ResendNotificationService extends AbstractNotificationProviderServi
       
       // Log full error details for debugging
       this.logger_.error(
-        `Detailed error sending email via Resend:`,
-        {
-          template: notification.template,
-          to: notification.to,
-          errorCode,
-          errorMessage,
-          fullError: JSON.stringify(error, null, 2)
-        }
+        `Detailed error sending email via Resend to ${notification.to} (template: ${notification.template}): ${errorCode} - ${errorMessage}. Full error: ${JSON.stringify(error, null, 2)}`
       )
       
       throw new MedusaError(
