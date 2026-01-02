@@ -1,4 +1,4 @@
-import { Text, Section, Hr, Table, Row, Cell } from '@react-email/components'
+import { Text, Section, Hr, Container, Row, Column } from '@react-email/components'
 import * as React from 'react'
 import { Base } from './base'
 import { OrderDTO, OrderAddressDTO } from '@medusajs/framework/types'
@@ -86,26 +86,26 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
         )}
 
         {orderItems.length > 0 && (
-          <>
+          <Section style={{ margin: '20px 0' }}>
             <Text style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 15px' }}>
               Order Items
             </Text>
 
-            <Table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #ddd', margin: '10px 0' }}>
+            <Container style={{ border: '1px solid #ddd', borderCollapse: 'collapse' }}>
               <Row style={{ backgroundColor: '#f2f2f2', borderBottom: '1px solid #ddd' }}>
-                <Cell style={{ padding: '8px', fontWeight: 'bold' }}>Item</Cell>
-                <Cell style={{ padding: '8px', fontWeight: 'bold' }}>Quantity</Cell>
-                <Cell style={{ padding: '8px', fontWeight: 'bold' }}>Price</Cell>
+                <Column style={{ padding: '8px', fontWeight: 'bold', width: '40%' }}>Item</Column>
+                <Column style={{ padding: '8px', fontWeight: 'bold', width: '30%', textAlign: 'center' }}>Quantity</Column>
+                <Column style={{ padding: '8px', fontWeight: 'bold', width: '30%', textAlign: 'right' }}>Price</Column>
               </Row>
               {orderItems.map((item: any) => (
                 <Row key={item.id} style={{ borderBottom: '1px solid #ddd' }}>
-                  <Cell style={{ padding: '8px' }}>{item.title || item.product_title || 'Item'}{item.subtitle ? ` - ${item.subtitle}` : ''}</Cell>
-                  <Cell style={{ padding: '8px' }}>{item.quantity || 1}</Cell>
-                  <Cell style={{ padding: '8px' }}>{orderCurrency.toUpperCase()} {(item.unit_price || 0).toFixed(2)}</Cell>
+                  <Column style={{ padding: '8px', width: '40%' }}>{item.title || item.product_title || 'Item'}{item.subtitle ? ` - ${item.subtitle}` : ''}</Column>
+                  <Column style={{ padding: '8px', width: '30%', textAlign: 'center' }}>{item.quantity || 1}</Column>
+                  <Column style={{ padding: '8px', width: '30%', textAlign: 'right' }}>{orderCurrency.toUpperCase()} {(item.unit_price || 0).toFixed(2)}</Column>
                 </Row>
               ))}
-            </Table>
-          </>
+            </Container>
+          </Section>
         )}
 
         <Hr style={{ margin: '20px 0' }} />
