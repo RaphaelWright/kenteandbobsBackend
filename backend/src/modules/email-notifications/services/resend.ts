@@ -101,11 +101,26 @@ export class ResendNotificationService extends AbstractNotificationProviderServi
       )
       return {} // Return an empty object on success
     } catch (error) {
-      const errorCode = error.code
-      const responseError = error.response?.body?.errors?.[0]
+      // Extract error information with proper fallbacks
+      const errorCode = error?.code || error?.status || 'UNKNOWN'
+      const responseError = error?.response?.body?.errors?.[0]
+      const errorMessage = responseError?.message || error?.message || 'unknown error'
+      
+      // Log full error details for debugging
+      this.logger_.error(
+        `Detailed error sending email via Resend:`,
+        {
+          template: notification.template,
+          to: notification.to,
+          errorCode,
+          errorMessage,
+          fullError: JSON.stringify(error, null, 2)
+        }
+      )
+      
       throw new MedusaError(
         MedusaError.Types.UNEXPECTED_STATE,
-        `Failed to send "${notification.template}" email to ${notification.to} via Resend: ${errorCode} - ${responseError?.message ?? 'unknown error'}`
+        `Failed to send "${notification.template}" email to ${notification.to} via Resend: ${errorCode} - ${errorMessage}`
       )
     }
   }

@@ -140,7 +140,13 @@ export async function sendOrderCompletionEmail(
       display_id: emailData.order.display_id,
       items_count: emailData.order.items.length,
       has_shipping_address: !!shippingAddress?.first_name,
+      shippingAddress_keys: Object.keys(shippingAddress || {}),
     });
+
+    // Validate email data before sending
+    if (!emailData.order || !emailData.shippingAddress) {
+      throw new Error("Email data validation failed: missing order or shipping address");
+    }
 
     await notificationModuleService.createNotifications({
       to: order.email,
@@ -151,7 +157,11 @@ export async function sendOrderCompletionEmail(
 
     console.log(`✅ Order completion email sent to ${order.email} for order ${order.display_id || order.id}`);
   } catch (error) {
-    console.error("❌ Failed to send order completion email:", error);
+    console.error("❌ Failed to send order completion email:", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      order_id: order?.id,
+    });
     // Don't throw - email failure shouldn't break order completion
   }
 }
