@@ -1,4 +1,4 @@
-import { Text, Section, Hr } from '@react-email/components'
+import { Text, Section, Hr, Table, Row, Cell } from '@react-email/components'
 import * as React from 'react'
 import { Base } from './base'
 import { OrderDTO, OrderAddressDTO } from '@medusajs/framework/types'
@@ -91,36 +91,20 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
               Order Items
             </Text>
 
-            <div style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              border: '1px solid #ddd',
-              margin: '10px 0'
-            }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                backgroundColor: '#f2f2f2',
-                padding: '8px',
-                borderBottom: '1px solid #ddd'
-              }}>
-                <Text style={{ fontWeight: 'bold' }}>Item</Text>
-                <Text style={{ fontWeight: 'bold' }}>Quantity</Text>
-                <Text style={{ fontWeight: 'bold' }}>Price</Text>
-              </div>
+            <Table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #ddd', margin: '10px 0' }}>
+              <Row style={{ backgroundColor: '#f2f2f2', borderBottom: '1px solid #ddd' }}>
+                <Cell style={{ padding: '8px', fontWeight: 'bold' }}>Item</Cell>
+                <Cell style={{ padding: '8px', fontWeight: 'bold' }}>Quantity</Cell>
+                <Cell style={{ padding: '8px', fontWeight: 'bold' }}>Price</Cell>
+              </Row>
               {orderItems.map((item: any) => (
-                <div key={item.id} style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  padding: '8px',
-                  borderBottom: '1px solid #ddd'
-                }}>
-                  <Text>{item.title || item.product_title || 'Item'}{item.subtitle ? ` - ${item.subtitle}` : ''}</Text>
-                  <Text>{item.quantity || 1}</Text>
-                  <Text>{orderCurrency.toUpperCase()} {(item.unit_price || 0).toFixed(2)}</Text>
-                </div>
+                <Row key={item.id} style={{ borderBottom: '1px solid #ddd' }}>
+                  <Cell style={{ padding: '8px' }}>{item.title || item.product_title || 'Item'}{item.subtitle ? ` - ${item.subtitle}` : ''}</Cell>
+                  <Cell style={{ padding: '8px' }}>{item.quantity || 1}</Cell>
+                  <Cell style={{ padding: '8px' }}>{orderCurrency.toUpperCase()} {(item.unit_price || 0).toFixed(2)}</Cell>
+                </Row>
               ))}
-            </div>
+            </Table>
           </>
         )}
 
