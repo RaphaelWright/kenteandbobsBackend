@@ -1,4 +1,4 @@
-import { Text, Section, Hr } from '@react-email/components'
+import { Text, Section, Hr, Img } from '@react-email/components'
 import * as React from 'react'
 import { Base } from './base'
 import { OrderDTO, OrderAddressDTO } from '@medusajs/framework/types'
@@ -27,8 +27,8 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
   PreviewProps: OrderPlacedPreviewProps
 } = ({ order, shippingAddress, preview = 'Your order has been placed!' }) => {
   // Safely access order properties with fallbacks
-  const orderDisplayId = order.display_id || order.id || 'N/A';
-  const orderTotal = order.summary?.raw_current_order_total?.value || order.total || 0;
+  const orderDisplayId =  order.id || 'N/A';
+  const orderTotal =  order.total || 0;
   const orderCurrency = order.currency_code || 'GHS';
   const orderDate = order.created_at ? new Date(order.created_at).toLocaleDateString() : new Date().toLocaleDateString();
   const orderItems = order.items || [];
@@ -93,6 +93,15 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
 
             {orderItems.map((item: any) => (
               <Section key={item?.id || Math.random()} style={{ borderBottom: '1px solid #ddd', paddingBottom: '15px', marginBottom: '15px' }}>
+                {item?.thumbnail && (
+                  <div style={{ marginBottom: '10px' }}>
+                    <Img
+                      src={String(item.thumbnail)}
+                      alt={String(item?.title || 'Product')}
+                      style={{ maxWidth: '200px', height: 'auto', borderRadius: '4px' }}
+                    />
+                  </div>
+                )}
                 <Text style={{ margin: '0 0 8px', fontWeight: 'bold', fontSize: '16px', color: '#333' }}>
                   {String(item?.title || item?.product_title || 'Item')}
                 </Text>
@@ -111,7 +120,7 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
                   Subtotal: {orderCurrency.toUpperCase()} {String(Number(item?.total || 0).toFixed(2))}
                 </Text>
               </Section>
-            ))}
+            ))}}
           </Section>
         )}
 

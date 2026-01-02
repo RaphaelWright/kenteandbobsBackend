@@ -1,4 +1,4 @@
-import { Text, Section, Hr } from '@react-email/components'
+import { Text, Section, Hr, Img } from '@react-email/components'
 import * as React from 'react'
 import { Base } from './base'
 import { OrderDTO } from '@medusajs/framework/types'
@@ -72,6 +72,15 @@ export const VendorOrderNotificationTemplate: React.FC<VendorOrderNotificationPr
         {order.items && order.items.length > 0 ? (
           order.items.map((item: any) => (
             <Section key={item?.id || Math.random()} style={{ marginBottom: '15px', paddingBottom: '15px', borderBottom: '1px solid #eee' }}>
+              {item?.thumbnail && (
+                <div style={{ marginBottom: '10px' }}>
+                  <Img
+                    src={String(item.thumbnail)}
+                    alt={String(item?.title || 'Product')}
+                    style={{ maxWidth: '150px', height: 'auto', borderRadius: '4px' }}
+                  />
+                </div>
+              )}
               <Text style={{ margin: '0 0 5px', fontWeight: 'bold', fontSize: '16px', color: '#333' }}>
                 {String(item?.title || 'Product')}
               </Text>
