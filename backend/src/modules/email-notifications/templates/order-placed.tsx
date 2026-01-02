@@ -69,16 +69,16 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
               Shipping Address
             </Text>
             <Text style={{ margin: '0 0 5px' }}>
-              {shippingAddress.address_1}
+              {String(shippingAddress.address_1 || '')}
             </Text>
             {(shippingAddress.city || shippingAddress.province || shippingAddress.postal_code) && (
               <Text style={{ margin: '0 0 5px' }}>
-                {shippingAddress.city}{shippingAddress.city && shippingAddress.province ? ', ' : ''}{shippingAddress.province} {shippingAddress.postal_code}
+                {String(shippingAddress.city || '')}{shippingAddress.city && shippingAddress.province ? ', ' : ''}{String(shippingAddress.province || '')} {String(shippingAddress.postal_code || '')}
               </Text>
             )}
             {shippingAddress.country_code && (
               <Text style={{ margin: '0 0 20px' }}>
-                {shippingAddress.country_code}
+                {String(shippingAddress.country_code || '')}
               </Text>
             )}
             <Hr style={{ margin: '20px 0' }} />
@@ -92,15 +92,15 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
             </Text>
 
             {orderItems.map((item: any) => (
-              <Section key={item.id} style={{ borderBottom: '1px solid #ddd', paddingBottom: '10px', marginBottom: '10px' }}>
+              <Section key={item?.id || Math.random()} style={{ borderBottom: '1px solid #ddd', paddingBottom: '10px', marginBottom: '10px' }}>
                 <Text style={{ margin: '5px 0', fontWeight: 'bold' }}>
-                  {item.title || item.product_title || 'Item'}{item.subtitle ? ` - ${item.subtitle}` : ''}
+                  {String(item?.title || item?.product_title || 'Item')}{item?.subtitle ? ` - ${String(item.subtitle)}` : ''}
                 </Text>
                 <Text style={{ margin: '5px 0' }}>
-                  Quantity: {item.quantity || 1}
+                  Quantity: {String(item?.quantity || 1)}
                 </Text>
                 <Text style={{ margin: '5px 0' }}>
-                  Price: {orderCurrency.toUpperCase()} {(item.unit_price || 0).toFixed(2)}
+                  Price: {orderCurrency.toUpperCase()} {String(Number(item?.unit_price || 0).toFixed(2))}
                 </Text>
               </Section>
             ))}

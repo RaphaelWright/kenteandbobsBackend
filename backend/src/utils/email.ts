@@ -116,7 +116,10 @@ export async function sendOrderCompletionEmail(
         currency_code: order.currency_code || 'GHS',
         items: Array.isArray(order.items) 
           ? order.items.map((item: any) => ({
-              ...item,
+              id: item.id,
+              title: item.title || item.product_title || 'Item',
+              subtitle: item.subtitle || '',
+              quantity: item.quantity || 1,
               unit_price: convertToCedis(item.unit_price),
               total: convertToCedis(item.total),
             }))

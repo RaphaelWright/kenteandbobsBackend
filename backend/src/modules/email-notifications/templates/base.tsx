@@ -1,4 +1,4 @@
-import { Html, Body, Container, Preview, Tailwind, Head } from '@react-email/components'
+import { Html, Body, Container, Preview, Tailwind, Head, Section } from '@react-email/components'
 import * as React from 'react'
 
 interface BaseProps {
@@ -14,9 +14,9 @@ export const Base: React.FC<BaseProps> = ({ preview, children }) => {
       <Tailwind>
         <Body className="bg-white my-auto mx-auto font-sans px-2">
           <Container className="border border-solid border-[#eaeaea] rounded my-[40px] mx-auto p-[20px] max-w-[465px] w-full overflow-hidden">
-            <div className="max-w-full break-words">
+            <Section className="max-w-full break-words">
               {children}
-            </div>
+            </Section>
           </Container>
         </Body>
       </Tailwind>
