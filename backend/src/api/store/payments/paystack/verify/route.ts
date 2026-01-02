@@ -2,7 +2,7 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework";
 import { ICartModuleService, IOrderModuleService, ICustomerModuleService, INotificationModuleService } from "@medusajs/framework/types";
 import { Modules } from "@medusajs/framework/utils";
 import { PAYSTACK_SECRET_KEY } from "../../../../../lib/constants";
-import { sendOrderCompletionEmail } from "../../../../../utils/email";
+import { sendOrderCompletionEmail, sendVendorOrderNotificationEmail } from "../../../../../utils/email";
 
 /**
  * GET /store/payments/paystack/verify
@@ -480,6 +480,15 @@ export async function GET(
     } catch (emailError) {
       console.error("❌ Failed to send order completion email (non-fatal):", emailError);
       // Don't fail the order if email fails
+    }
+
+    // Send vendor notification email
+    try {
+      const notificationModuleService: INotificationModuleService = req.scope.resolve(Modules.NOTIFICATION);
+      await sendVendorOrderNotificationEmail(notificationModuleService, completeOrder);
+    } catch (vendorEmailError) {
+      console.error("❌ Failed to send vendor notification email (non-fatal):", vendorEmailError);
+      // Don't fail the order if vendor email fails
     }
 
     // Format response

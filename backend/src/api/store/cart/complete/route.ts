@@ -9,7 +9,7 @@ import {
   validatePaymentData,
   convertDeliveryToAddress,
 } from "../../../../utils/checkout-validation";
-import { sendOrderCompletionEmail } from "../../../../utils/email";
+import { sendOrderCompletionEmail, sendVendorOrderNotificationEmail } from "../../../../utils/email";
 
 interface CheckoutRequest {
   cart_id?: string;
@@ -299,6 +299,15 @@ export async function POST(
       } catch (emailError) {
         console.error("❌ Failed to send order completion email (non-fatal):", emailError);
         // Don't fail the order if email fails
+      }
+
+      // Send vendor notification email
+      try {
+        const notificationModuleService: INotificationModuleService = req.scope.resolve(Modules.NOTIFICATION);
+        await sendVendorOrderNotificationEmail(notificationModuleService, order);
+      } catch (vendorEmailError) {
+        console.error("❌ Failed to send vendor notification email (non-fatal):", vendorEmailError);
+        // Don't fail the order if vendor email fails
       }
 
       // Format order response

@@ -168,3 +168,81 @@ export async function sendOrderCompletionEmail(
     // Don't throw - email failure shouldn't break order completion
   }
 }
+
+/**
+ * Send vendor order notification email
+ */
+export async function sendVendorOrderNotificationEmail(
+  notificationModuleService: INotificationModuleService,
+  order: any,
+  vendorEmail: string = 'kentenbobs@gmail.com'
+): Promise<void> {
+  try {
+    // Validate required fields
+    if (!order || !order.email) {
+      console.warn("⚠️ Cannot send vendor notification: missing order or order email");
+      return;
+    }
+
+    if (!vendorEmail) {
+      console.warn("⚠️ Cannot send vendor notification: missing vendor email");
+      return;
+    }
+
+    console.log(`📧 Preparing vendor order notification for order ${order.display_id || order.id}`);
+
+    // Extract customer information
+    const customerName = order.customer?.first_name 
+      ? `${order.customer.first_name}${order.customer.last_name ? ' ' + order.customer.last_name : ''}`
+      : order.billing_address?.first_name
+      ? `${order.billing_address.first_name}${order.billing_address.last_name ? ' ' + order.billing_address.last_name : ''}`
+      : 'Customer';
+
+    const customerEmail = order.email || 'N/A';
+    const itemsCount = Array.isArray(order.items) ? order.items.length : 0;
+
+    // Prepare email data for vendor
+    const vendorEmailData = {
+      order: {
+        id: order.id,
+        display_id: order.display_id || order.id,
+        created_at: order.created_at || new Date().toISOString(),
+        email: order.email,
+        currency_code: order.currency_code || 'GHS',
+        items: Array.isArray(order.items) ? order.items : [],
+        total: typeof order.total === 'number' ? order.total : Number(order.total) || 0,
+        summary: order.summary || { raw_current_order_total: { value: order.total || 0 } },
+      },
+      customerName,
+      customerEmail,
+      itemsCount,
+      emailOptions: {
+        subject: `New Order Alert - Order #${order.display_id || order.id}`,
+      },
+    };
+
+    console.log(`📧 Vendor email data prepared:`, {
+      vendor_to: vendorEmail,
+      order_id: vendorEmailData.order.id,
+      display_id: vendorEmailData.order.display_id,
+      customer_name: customerName,
+      items_count: itemsCount,
+    });
+
+    await notificationModuleService.createNotifications({
+      to: vendorEmail,
+      channel: "email",
+      template: "vendor-order-notification",
+      data: vendorEmailData,
+    });
+
+    console.log(`✅ Vendor notification email sent to ${vendorEmail} for order ${order.display_id || order.id}`);
+  } catch (error) {
+    console.error("❌ Failed to send vendor notification email:", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      order_id: order?.id,
+    });
+    // Don't throw - vendor email failure shouldn't break order completion
+  }
+}
