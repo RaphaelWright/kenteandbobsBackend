@@ -38,6 +38,7 @@ export async function GET(
         "categories.*",
         "tags.*",
         "options.*",
+        "collection.*",
       ],
       filters: {
         id,
@@ -165,6 +166,11 @@ export async function GET(
         id: tag.id,
         value: tag.value,
       })) || [],
+      collection: product.collection ? {
+        id: product.collection.id,
+        name: product.collection.title,
+        handle: product.collection.handle,
+      } : null,
       options: product.options?.map((opt: any) => ({
         id: opt.id,
         title: opt.title,

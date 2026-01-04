@@ -44,6 +44,7 @@ export async function GET(
         "variants.inventory_items.inventory.location_levels.*",
         "categories.*",
         "tags.*",
+        "collection.*",
       ],
       filters: {
         ...(category_id && {
@@ -182,6 +183,11 @@ export async function GET(
           id: tag.id,
           value: tag.value,
         })) || [],
+        collection: product.collection ? {
+          id: product.collection.id,
+          name: product.collection.title,
+          handle: product.collection.handle,
+        } : null,
         quantity: totalQuantity,
         variants: product.variants?.map((variant: any) => {
           const variantPrice = variant.prices?.[0];
