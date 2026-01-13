@@ -35,6 +35,12 @@ export async function GET(
     // First, verify that the collection exists
     const { data: collections } = await query.graph({
       entity: "product_collection",
+      fields: [
+        "id",
+        "title",
+        "handle",
+        "description",
+      ],
       filters: {
         id: collectionId,
       },
@@ -124,7 +130,7 @@ export async function GET(
     let wishlistItems: string[] = [];
     if (customerId) {
       try {
-        const wishlists = await wishlistModuleService.listWishlistItems({
+        const wishlists = await wishlistModuleService.listWishlists({
           customer_id: customerId,
           product_id: productIds,
         });
