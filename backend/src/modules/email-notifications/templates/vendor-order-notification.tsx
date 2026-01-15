@@ -2,6 +2,7 @@ import { Text, Section, Hr, Img } from '@react-email/components'
 import * as React from 'react'
 import { Base } from './base'
 import { OrderDTO } from '@medusajs/framework/types'
+import { formatCedis } from '../../../utils/currency'
 
 export const VENDOR_ORDER_NOTIFICATION = 'vendor-order-notification'
 
@@ -57,7 +58,7 @@ export const VendorOrderNotificationTemplate: React.FC<VendorOrderNotificationPr
           <strong>Order Date:</strong> {String(orderDate)}
         </Text>
         <Text style={{ margin: '0 0 5px' }}>
-          <strong>Total Amount:</strong> {String(orderCurrency.toUpperCase())} {String(typeof orderTotal === 'number' ? orderTotal.toFixed(2) : Number(orderTotal).toFixed(2))}
+          <strong>Total Amount:</strong> {formatCedis(typeof orderTotal === 'number' ? orderTotal : Number(orderTotal))}
         </Text>
         <Text style={{ margin: '0 0 20px' }}>
           <strong>Number of Items:</strong> {String(itemsCount)}
@@ -93,7 +94,7 @@ export const VendorOrderNotificationTemplate: React.FC<VendorOrderNotificationPr
                 Quantity: {String(item?.quantity || 1)}
               </Text>
               <Text style={{ margin: '0 0 5px', fontSize: '14px' }}>
-                Price: {String(orderCurrency.toUpperCase())} {String(Number(item?.unit_price || 0).toFixed(2))}
+                Price: {formatCedis(Number(item?.unit_price || 0))}
               </Text>
             </Section>
           ))
