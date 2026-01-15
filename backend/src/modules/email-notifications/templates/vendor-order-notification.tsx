@@ -2,7 +2,7 @@ import { Text, Section, Hr, Img } from '@react-email/components'
 import * as React from 'react'
 import { Base } from './base'
 import { OrderDTO } from '@medusajs/framework/types'
-import { formatCedis } from '../../../utils/currency'
+import { enrichPrice } from '../../../utils/currency'
 
 export const VENDOR_ORDER_NOTIFICATION = 'vendor-order-notification'
 
@@ -28,8 +28,10 @@ export const VendorOrderNotificationTemplate: React.FC<VendorOrderNotificationPr
 } = ({ order, customerName, customerEmail, itemsCount, preview = 'New Order Alert' }) => {
   // Safely access order properties with fallbacks
   const orderDisplayId = order.display_id || order.id || 'N/A'
-  const orderTotal = order.summary?.raw_current_order_total?.value || order.total || 0
   const orderCurrency = order.currency_code || 'GHS'
+  // Use enrichPrice to format the order total consistently with the order endpoint
+  const orderTotalRaw = order.summary?.raw_current_order_total?.value || order.total || 0
+  const enrichedTotal = enrichPrice(orderTotalRaw, orderCurrency.toLowerCase())
   const orderDate = order.created_at 
     ? new Date(order.created_at).toLocaleDateString() 
     : new Date().toLocaleDateString()
@@ -58,7 +60,7 @@ export const VendorOrderNotificationTemplate: React.FC<VendorOrderNotificationPr
           <strong>Order Date:</strong> {String(orderDate)}
         </Text>
         <Text style={{ margin: '0 0 5px' }}>
-          <strong>Total Amount:</strong> {formatCedis(typeof orderTotal === 'number' ? orderTotal : Number(orderTotal))}
+          <strong>Total Amount:</strong> {enrichedTotal.formatted}
         </Text>
         <Text style={{ margin: '0 0 20px' }}>
           <strong>Number of Items:</strong> {String(itemsCount)}
@@ -94,7 +96,7 @@ export const VendorOrderNotificationTemplate: React.FC<VendorOrderNotificationPr
                 Quantity: {String(item?.quantity || 1)}
               </Text>
               <Text style={{ margin: '0 0 5px', fontSize: '14px' }}>
-                Price: {formatCedis(Number(item?.unit_price || 0))}
+                Price: {enrichPrice(Number(item?.unit_price || 0), orderCurrency.toLowerCase()).formatted}
               </Text>
             </Section>
           ))

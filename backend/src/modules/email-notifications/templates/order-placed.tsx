@@ -2,7 +2,7 @@ import { Text, Section, Hr, Img } from '@react-email/components'
 import * as React from 'react'
 import { Base } from './base'
 import { OrderDTO, OrderAddressDTO } from '@medusajs/framework/types'
-import { formatCedis } from '../../../utils/currency'
+import { enrichPrice } from '../../../utils/currency'
 
 export const ORDER_PLACED = 'order-placed'
 
@@ -29,8 +29,9 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
 } = ({ order, shippingAddress, preview = 'Your order has been placed!' }) => {
   // Safely access order properties with fallbacks
   const orderDisplayId =  order.id || 'N/A';
-  const orderTotal =  order.total || 0;
   const orderCurrency = order.currency_code || 'GHS';
+  // Use enrichPrice to format the order total consistently with the order endpoint
+  const enrichedTotal = enrichPrice(order.total || 0, orderCurrency.toLowerCase());
   const orderDate = order.created_at ? new Date(order.created_at).toLocaleDateString() : new Date().toLocaleDateString();
   const orderItems = order.items || [];
   
@@ -59,7 +60,7 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
           Order Date: {orderDate}
         </Text>
         <Text style={{ margin: '0 0 20px' }}>
-          Total: {formatCedis(typeof orderTotal === 'number' ? orderTotal : Number(orderTotal))}
+          Total: {enrichedTotal.formatted}
         </Text>
 
         <Hr style={{ margin: '20px 0' }} />
@@ -115,10 +116,10 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
                   Quantity: {String(item?.quantity || 1)}
                 </Text>
                 <Text style={{ margin: '0 0 5px', fontSize: '14px' }}>
-                  Unit Price: {formatCedis(Number(item?.unit_price || 0))}
+                  Unit Price: {enrichPrice(Number(item?.unit_price || 0), orderCurrency.toLowerCase()).formatted}
                 </Text>
                 <Text style={{ margin: '5px 0', fontSize: '14px', fontWeight: 'bold', color: '#d32f2f' }}>
-                  Subtotal: {formatCedis(Number(item?.total || 0))}
+                  Subtotal: {enrichPrice(Number(item?.total || 0), orderCurrency.toLowerCase()).formatted}
                 </Text>
               </Section>
             ))}
