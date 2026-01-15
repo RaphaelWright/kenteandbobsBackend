@@ -31,7 +31,9 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
   const orderDisplayId =  order.id || 'N/A';
   const orderCurrency = order.currency_code || 'GHS';
   // Use enrichPrice to format the order total consistently with the order endpoint
-  const enrichedTotal = enrichPrice(order.total || 0, orderCurrency.toLowerCase());
+  // Convert BigNumberValue to number (order.total can be string or number)
+  const orderTotal = typeof order.total === 'string' ? parseFloat(order.total) : Number(order.total || 0);
+  const enrichedTotal = enrichPrice(orderTotal, orderCurrency.toLowerCase());
   const orderDate = order.created_at ? new Date(order.created_at).toLocaleDateString() : new Date().toLocaleDateString();
   const orderItems = order.items || [];
   
@@ -116,10 +118,10 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
                   Quantity: {String(item?.quantity || 1)}
                 </Text>
                 <Text style={{ margin: '0 0 5px', fontSize: '14px' }}>
-                  Unit Price: {enrichPrice(Number(item?.unit_price || 0), orderCurrency.toLowerCase()).formatted}
+                  Unit Price: {enrichPrice(typeof item?.unit_price === 'string' ? parseFloat(item.unit_price) : Number(item?.unit_price || 0), orderCurrency.toLowerCase()).formatted}
                 </Text>
                 <Text style={{ margin: '5px 0', fontSize: '14px', fontWeight: 'bold', color: '#d32f2f' }}>
-                  Subtotal: {enrichPrice(Number(item?.total || 0), orderCurrency.toLowerCase()).formatted}
+                  Subtotal: {enrichPrice(typeof item?.total === 'string' ? parseFloat(item.total) : Number(item?.total || 0), orderCurrency.toLowerCase()).formatted}
                 </Text>
               </Section>
             ))}

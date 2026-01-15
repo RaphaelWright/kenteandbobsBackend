@@ -30,8 +30,10 @@ export const VendorOrderNotificationTemplate: React.FC<VendorOrderNotificationPr
   const orderDisplayId = order.display_id || order.id || 'N/A'
   const orderCurrency = order.currency_code || 'GHS'
   // Use enrichPrice to format the order total consistently with the order endpoint
+  // Convert BigNumberValue to number (order.total can be string or number)
   const orderTotalRaw = order.summary?.raw_current_order_total?.value || order.total || 0
-  const enrichedTotal = enrichPrice(orderTotalRaw, orderCurrency.toLowerCase())
+  const orderTotal = typeof orderTotalRaw === 'string' ? parseFloat(orderTotalRaw) : Number(orderTotalRaw)
+  const enrichedTotal = enrichPrice(orderTotal, orderCurrency.toLowerCase())
   const orderDate = order.created_at 
     ? new Date(order.created_at).toLocaleDateString() 
     : new Date().toLocaleDateString()
@@ -96,7 +98,7 @@ export const VendorOrderNotificationTemplate: React.FC<VendorOrderNotificationPr
                 Quantity: {String(item?.quantity || 1)}
               </Text>
               <Text style={{ margin: '0 0 5px', fontSize: '14px' }}>
-                Price: {enrichPrice(Number(item?.unit_price || 0), orderCurrency.toLowerCase()).formatted}
+                Price: {enrichPrice(typeof item?.unit_price === 'string' ? parseFloat(item.unit_price) : Number(item?.unit_price || 0), orderCurrency.toLowerCase()).formatted}
               </Text>
             </Section>
           ))
