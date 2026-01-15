@@ -2,6 +2,7 @@ import { Text, Section, Hr, Img } from '@react-email/components'
 import * as React from 'react'
 import { Base } from './base'
 import { OrderDTO, OrderAddressDTO } from '@medusajs/framework/types'
+import { formatCedis } from '../../../utils/currency'
 
 export const ORDER_PLACED = 'order-placed'
 
@@ -58,7 +59,7 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
           Order Date: {orderDate}
         </Text>
         <Text style={{ margin: '0 0 20px' }}>
-          Total: {orderCurrency.toUpperCase()} {typeof orderTotal === 'number' ? orderTotal.toFixed(2) : Number(orderTotal).toFixed(2)}
+          Total: {formatCedis(typeof orderTotal === 'number' ? orderTotal : Number(orderTotal))}
         </Text>
 
         <Hr style={{ margin: '20px 0' }} />
@@ -114,10 +115,10 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
                   Quantity: {String(item?.quantity || 1)}
                 </Text>
                 <Text style={{ margin: '0 0 5px', fontSize: '14px' }}>
-                  Unit Price: {orderCurrency.toUpperCase()} {String(Number(item?.unit_price || 0).toFixed(2))}
+                  Unit Price: {formatCedis(Number(item?.unit_price || 0))}
                 </Text>
                 <Text style={{ margin: '5px 0', fontSize: '14px', fontWeight: 'bold', color: '#d32f2f' }}>
-                  Subtotal: {orderCurrency.toUpperCase()} {String(Number(item?.total || 0).toFixed(2))}
+                  Subtotal: {formatCedis(Number(item?.total || 0))}
                 </Text>
               </Section>
             ))}
