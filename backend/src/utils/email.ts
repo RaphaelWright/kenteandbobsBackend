@@ -98,15 +98,18 @@ export async function sendOrderCompletionEmail(
 
     console.log(`📧 Preparing order completion email for order ${order.display_id || order.id}`);
 
-    // Convert amounts from pesewas to cedis (divide by 100)
-    const convertToCedis = (amount: any): number => {
-      if (typeof amount === 'object' && amount !== null && 'toNumber' in amount) {
-        return (amount as any).toNumber() / 100;
+    // Convert BigNumber values to numbers to match API endpoint format (no division)
+    const convertToNumber = (value: any): number => {
+      if (value == null) return 0
+      if (typeof value === 'number') return value
+      if (typeof value === 'string') return parseFloat(value) || 0
+      if (typeof value === 'object' && 'toNumber' in value) {
+        return (value as any).toNumber()
       }
-      return (Number(amount) || 0) / 100;
-    };
+      return Number(value) || 0
+    }
 
-    // Prepare email data with safe defaults and convert currency
+    // Prepare email data with safe defaults - use raw values like API endpoint
     const emailData = {
       order: {
         id: order.id,
@@ -120,14 +123,14 @@ export async function sendOrderCompletionEmail(
               title: item.title || item.product_title || 'Item',
               subtitle: item.subtitle || '',
               quantity: item.quantity || 1,
-              unit_price: convertToCedis(item.unit_price),
-              total: convertToCedis(item.total),
+              unit_price: convertToNumber(item.unit_price),
+              total: convertToNumber(item.total),
             }))
           : [],
-        total: convertToCedis(order.total),
+        total: convertToNumber(order.total),
         summary: {
           raw_current_order_total: {
-            value: convertToCedis(order.total),
+            value: convertToNumber(order.total),
           },
         },
       },
