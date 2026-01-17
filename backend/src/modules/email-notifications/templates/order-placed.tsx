@@ -2,7 +2,6 @@ import { Text, Section, Hr, Img } from '@react-email/components'
 import * as React from 'react'
 import { Base } from './base'
 import { OrderDTO, OrderAddressDTO } from '@medusajs/framework/types'
-import { enrichPrice } from '../../../utils/currency'
 
 export const ORDER_PLACED = 'order-placed'
 
@@ -29,11 +28,6 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
 } = ({ order, shippingAddress, preview = 'Your order has been placed!' }) => {
   // Safely access order properties with fallbacks
   const orderDisplayId =  order.id || 'N/A';
-  const orderCurrency = order.currency_code || 'GHS';
-  // Use enrichPrice to format the order total consistently with the order endpoint
-  // Convert BigNumberValue to number (order.total can be string or number)
-  const orderTotal = typeof order.total === 'string' ? parseFloat(order.total) : Number(order.total || 0);
-  const enrichedTotal = enrichPrice(orderTotal, orderCurrency.toLowerCase());
   const orderDate = order.created_at ? new Date(order.created_at).toLocaleDateString() : new Date().toLocaleDateString();
   const orderItems = order.items || [];
   
@@ -62,7 +56,7 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
           Order Date: {orderDate}
         </Text>
         <Text style={{ margin: '0 0 20px' }}>
-          Total: {enrichedTotal.formatted}
+          Total: {String(order.total || 0)}
         </Text>
 
         <Hr style={{ margin: '20px 0' }} />
@@ -118,10 +112,10 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
                   Quantity: {String(item?.quantity || 1)}
                 </Text>
                 <Text style={{ margin: '0 0 5px', fontSize: '14px' }}>
-                  Unit Price: {enrichPrice(typeof item?.unit_price === 'string' ? parseFloat(item.unit_price) : Number(item?.unit_price || 0), orderCurrency.toLowerCase()).formatted}
+                  Unit Price: {String(item?.unit_price || 0)}
                 </Text>
                 <Text style={{ margin: '5px 0', fontSize: '14px', fontWeight: 'bold', color: '#d32f2f' }}>
-                  Subtotal: {enrichPrice(typeof item?.total === 'string' ? parseFloat(item.total) : Number(item?.total || 0), orderCurrency.toLowerCase()).formatted}
+                  Subtotal: {String(item?.total || 0)}
                 </Text>
               </Section>
             ))}

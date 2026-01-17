@@ -2,7 +2,6 @@ import { Text, Section, Hr, Img } from '@react-email/components'
 import * as React from 'react'
 import { Base } from './base'
 import { OrderDTO } from '@medusajs/framework/types'
-import { enrichPrice } from '../../../utils/currency'
 
 export const VENDOR_ORDER_NOTIFICATION = 'vendor-order-notification'
 
@@ -28,12 +27,6 @@ export const VendorOrderNotificationTemplate: React.FC<VendorOrderNotificationPr
 } = ({ order, customerName, customerEmail, itemsCount, preview = 'New Order Alert' }) => {
   // Safely access order properties with fallbacks
   const orderDisplayId = order.display_id || order.id || 'N/A'
-  const orderCurrency = order.currency_code || 'GHS'
-  // Use enrichPrice to format the order total consistently with the order endpoint
-  // Convert BigNumberValue to number (order.total can be string or number)
-  const orderTotalRaw = order.summary?.raw_current_order_total?.value || order.total || 0
-  const orderTotal = typeof orderTotalRaw === 'string' ? parseFloat(orderTotalRaw) : Number(orderTotalRaw)
-  const enrichedTotal = enrichPrice(orderTotal, orderCurrency.toLowerCase())
   const orderDate = order.created_at 
     ? new Date(order.created_at).toLocaleDateString() 
     : new Date().toLocaleDateString()
@@ -62,7 +55,7 @@ export const VendorOrderNotificationTemplate: React.FC<VendorOrderNotificationPr
           <strong>Order Date:</strong> {String(orderDate)}
         </Text>
         <Text style={{ margin: '0 0 5px' }}>
-          <strong>Total Amount:</strong> {enrichedTotal.formatted}
+          <strong>Total Amount:</strong> {String(order.total || 0)}
         </Text>
         <Text style={{ margin: '0 0 20px' }}>
           <strong>Number of Items:</strong> {String(itemsCount)}
@@ -98,7 +91,7 @@ export const VendorOrderNotificationTemplate: React.FC<VendorOrderNotificationPr
                 Quantity: {String(item?.quantity || 1)}
               </Text>
               <Text style={{ margin: '0 0 5px', fontSize: '14px' }}>
-                Price: {enrichPrice(typeof item?.unit_price === 'string' ? parseFloat(item.unit_price) : Number(item?.unit_price || 0), orderCurrency.toLowerCase()).formatted}
+                Price: {String(item?.unit_price || 0)}
               </Text>
             </Section>
           ))
