@@ -55,7 +55,7 @@ export const VendorOrderNotificationTemplate: React.FC<VendorOrderNotificationPr
           <strong>Order Date:</strong> {String(orderDate)}
         </Text>
         <Text style={{ margin: '0 0 5px' }}>
-          <strong>Total Amount:</strong> {String(order.total || 0)}
+          <strong>Total Amount:</strong> GHC{String(order.total || 0)}
         </Text>
         <Text style={{ margin: '0 0 20px' }}>
           <strong>Number of Items:</strong> {String(itemsCount)}
@@ -91,7 +91,7 @@ export const VendorOrderNotificationTemplate: React.FC<VendorOrderNotificationPr
                 Quantity: {String(item?.quantity || 1)}
               </Text>
               <Text style={{ margin: '0 0 5px', fontSize: '14px' }}>
-                Price: {String(item?.unit_price || 0)}
+                Price: GHC{String(item?.unit_price || 0)}
               </Text>
             </Section>
           ))
