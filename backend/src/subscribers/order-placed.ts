@@ -8,10 +8,43 @@ export default async function orderPlacedHandler({
   container,
 }: SubscriberArgs<any>) {
   const notificationModuleService: INotificationModuleService = container.resolve(Modules.NOTIFICATION)
-  const orderModuleService: IOrderModuleService = container.resolve(Modules.ORDER)
+  const query = container.resolve('query')
   
-  const order = await orderModuleService.retrieveOrder(data.id, { relations: ['items', 'summary', 'shipping_address'] })
-  const shippingAddress = await (orderModuleService as any).orderAddressService_.retrieve(order.shipping_address.id)
+  // Use query.graph like the API endpoint to get the same order format
+  const { data: orders } = await query.graph({
+    entity: "order",
+    fields: [
+      "id",
+      "status",
+      "display_id",
+      "email",
+      "customer_id",
+      "currency_code",
+      "total",
+      "subtotal",
+      "tax_total",
+      "shipping_total",
+      "discount_total",
+      "metadata",
+      "created_at",
+      "items.*",
+      "items.product.id",
+      "items.product.title",
+      "items.product.thumbnail",
+      "items.variant.id",
+      "items.variant.title",
+      "shipping_address.*",
+    ],
+    filters: { id: data.id },
+  })
+
+  if (!orders?.length) {
+    console.error('Order not found for email:', data.id)
+    return
+  }
+
+  const order = orders[0]
+  const shippingAddress = order.shipping_address
 
   try {
     await notificationModuleService.createNotifications({
@@ -24,7 +57,12 @@ export default async function orderPlacedHandler({
           subject: 'Your order has been placed'
         },
         order,
-        shippingAddress,
+        shippingAddress: shippingAddress || {
+          first_name: 'Valued',
+          last_name: 'Customer',
+          address_1: 'Address not provided',
+          country_code: 'GH'
+        },
         preview: 'Thank you for your order!'
       }
     })
