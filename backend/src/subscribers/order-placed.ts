@@ -46,6 +46,46 @@ export default async function orderPlacedHandler({
   const order = orders[0]
   const shippingAddress = order.shipping_address
 
+  // Log the raw values to debug
+  console.log('📧 Email order data - raw values:', {
+    total_type: typeof order.total,
+    total_value: order.total,
+    total_stringified: JSON.stringify(order.total),
+    unit_price_sample: order.items?.[0]?.unit_price,
+    unit_price_type: typeof order.items?.[0]?.unit_price,
+  })
+
+  // Convert BigNumber values to numbers to match API endpoint format
+  const convertToNumber = (value: any): number => {
+    if (value == null) return 0
+    if (typeof value === 'number') return value
+    if (typeof value === 'string') return parseFloat(value) || 0
+    if (typeof value === 'object' && 'toNumber' in value) {
+      return (value as any).toNumber()
+    }
+    return Number(value) || 0
+  }
+
+  // Prepare order data with explicit number conversion
+  const orderData = {
+    ...order,
+    total: convertToNumber(order.total),
+    subtotal: convertToNumber(order.subtotal),
+    tax_total: convertToNumber(order.tax_total),
+    shipping_total: convertToNumber(order.shipping_total),
+    discount_total: convertToNumber(order.discount_total),
+    items: order.items?.map((item: any) => ({
+      ...item,
+      unit_price: convertToNumber(item.unit_price),
+      total: convertToNumber(item.total),
+    })) || [],
+  }
+
+  console.log('📧 Email order data - converted values:', {
+    total: orderData.total,
+    unit_price: orderData.items?.[0]?.unit_price,
+  })
+
   try {
     await notificationModuleService.createNotifications({
       to: order.email,
@@ -56,7 +96,7 @@ export default async function orderPlacedHandler({
           replyTo: 'info@example.com',
           subject: 'Your order has been placed'
         },
-        order,
+        order: orderData,
         shippingAddress: shippingAddress || {
           first_name: 'Valued',
           last_name: 'Customer',
