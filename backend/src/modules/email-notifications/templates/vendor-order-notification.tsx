@@ -2,6 +2,7 @@ import { Text, Section, Hr, Img } from '@react-email/components'
 import * as React from 'react'
 import { Base } from './base'
 import { OrderDTO } from '@medusajs/framework/types'
+import { formatCedis } from '../../../utils/currency'
 
 export const VENDOR_ORDER_NOTIFICATION = 'vendor-order-notification'
 
@@ -30,6 +31,19 @@ export const VendorOrderNotificationTemplate: React.FC<VendorOrderNotificationPr
   const orderDate = order.created_at 
     ? new Date(order.created_at).toLocaleDateString() 
     : new Date().toLocaleDateString()
+  const currencyCode = (order.currency_code || 'GHS').toLowerCase()
+  
+  // Format price with currency and 2 decimal places
+  const formatPrice = (amount: number | string | null | undefined): string => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : Number(amount || 0);
+    if (currencyCode === 'ghs') {
+      return formatCedis(numAmount, true);
+    }
+    // For other currencies, format with 2 decimal places
+    const formatted = numAmount.toFixed(2);
+    const currencySymbol = currencyCode === 'usd' ? '$' : currencyCode === 'eur' ? '€' : currencyCode === 'gbp' ? '£' : currencyCode.toUpperCase();
+    return `${currencySymbol} ${formatted}`;
+  };
 
   return (
     <Base preview={preview}>
@@ -55,7 +69,7 @@ export const VendorOrderNotificationTemplate: React.FC<VendorOrderNotificationPr
           <strong>Order Date:</strong> {String(orderDate)}
         </Text>
         <Text style={{ margin: '0 0 5px' }}>
-          <strong>Total Amount:</strong> {String(order.total || 0)}
+          <strong>Total Amount:</strong> {formatPrice(order.total)}
         </Text>
         <Text style={{ margin: '0 0 20px' }}>
           <strong>Number of Items:</strong> {String(itemsCount)}
@@ -91,7 +105,7 @@ export const VendorOrderNotificationTemplate: React.FC<VendorOrderNotificationPr
                 Quantity: {String(item?.quantity || 1)}
               </Text>
               <Text style={{ margin: '0 0 5px', fontSize: '14px' }}>
-                Price: {String(item?.unit_price || 0)}
+                Price: {formatPrice(item?.unit_price)}
               </Text>
             </Section>
           ))

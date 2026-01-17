@@ -2,6 +2,7 @@ import { Text, Section, Hr, Img } from '@react-email/components'
 import * as React from 'react'
 import { Base } from './base'
 import { OrderDTO, OrderAddressDTO } from '@medusajs/framework/types'
+import { formatCedis } from '../../../utils/currency'
 
 export const ORDER_PLACED = 'order-placed'
 
@@ -30,6 +31,19 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
   const orderDisplayId =  order.id || 'N/A';
   const orderDate = order.created_at ? new Date(order.created_at).toLocaleDateString() : new Date().toLocaleDateString();
   const orderItems = order.items || [];
+  const currencyCode = (order.currency_code || 'GHS').toLowerCase();
+  
+  // Format price with currency and 2 decimal places
+  const formatPrice = (amount: number | string | null | undefined): string => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : Number(amount || 0);
+    if (currencyCode === 'ghs') {
+      return formatCedis(numAmount, true);
+    }
+    // For other currencies, format with 2 decimal places
+    const formatted = numAmount.toFixed(2);
+    const currencySymbol = currencyCode === 'usd' ? '$' : currencyCode === 'eur' ? '€' : currencyCode === 'gbp' ? '£' : currencyCode.toUpperCase();
+    return `${currencySymbol} ${formatted}`;
+  };
   
   return (
     <Base preview={preview}>
@@ -56,7 +70,7 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
           Order Date: {orderDate}
         </Text>
         <Text style={{ margin: '0 0 20px' }}>
-          Total: {String(order.total || 0)}
+          Total: {formatPrice(order.total)}
         </Text>
 
         <Hr style={{ margin: '20px 0' }} />
@@ -112,10 +126,10 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
                   Quantity: {String(item?.quantity || 1)}
                 </Text>
                 <Text style={{ margin: '0 0 5px', fontSize: '14px' }}>
-                  Unit Price: {String(item?.unit_price || 0)}
+                  Unit Price: {formatPrice(item?.unit_price)}
                 </Text>
                 <Text style={{ margin: '5px 0', fontSize: '14px', fontWeight: 'bold', color: '#d32f2f' }}>
-                  Subtotal: {String(item?.total || 0)}
+                  Subtotal: {formatPrice(item?.total)}
                 </Text>
               </Section>
             ))}
