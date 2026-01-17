@@ -56,7 +56,7 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
           Order Date: {orderDate}
         </Text>
         <Text style={{ margin: '0 0 20px' }}>
-          Total: {String(order.total || 0)}
+          Total: GHC{String(order.total || 0)}
         </Text>
 
         <Hr style={{ margin: '20px 0' }} />
@@ -112,10 +112,10 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
                   Quantity: {String(item?.quantity || 1)}
                 </Text>
                 <Text style={{ margin: '0 0 5px', fontSize: '14px' }}>
-                  Unit Price: {String(item?.unit_price || 0)}
+                  Unit Price: GHC{String(item?.unit_price || 0)}
                 </Text>
                 <Text style={{ margin: '5px 0', fontSize: '14px', fontWeight: 'bold', color: '#d32f2f' }}>
-                  Subtotal: {String(item?.total || 0)}
+                  Subtotal: GHC{String(item?.total || 0)}
                 </Text>
               </Section>
             ))}
