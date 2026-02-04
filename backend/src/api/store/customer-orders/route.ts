@@ -116,7 +116,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         "billing_address.*",
         "shipping_methods.*",
         "payment_collections.status",
-        "fulfillments.*",
+        // "fulfillments.*",
       ],
       filters: { customer_id: customer.id },
     });
@@ -157,7 +157,6 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         discount_total_display: enrichedDiscountTotal.display_amount,
         discount_total_formatted: enrichedDiscountTotal.formatted,
         payment_status: getPaymentStatus(order),
-        fulfillment_status: order.fulfillments?.length > 0 ? "fulfilled" : "not_fulfilled",
         items: order.items?.map((item: any) => {
           const enrichedUnitPrice = enrichPrice(item.unit_price || 0, currencyCode);
           const enrichedItemTotal = enrichPrice(item.total || 0, currencyCode);

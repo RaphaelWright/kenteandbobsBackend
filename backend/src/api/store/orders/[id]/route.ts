@@ -86,8 +86,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         "shipping_methods.*",
         "payment_collections.*",
         "payment_collections.payments.*",
-        "fulfillments.*",
-        "fulfillments.items.*",
+        // "fulfillments.*",
+        // "fulfillments.items.*",
       ],
       filters: { id: orderId },
     });
@@ -133,7 +133,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       discount_total_formatted: enrichedDiscountTotal.formatted,
       metadata: order.metadata || {},
       payment_status: getPaymentStatus(order),
-      fulfillment_status: order.fulfillments?.length > 0 ? "fulfilled" : "not_fulfilled",
+      // fulfillment_status: order.fulfillments?.length > 0 ? "fulfilled" : "not_fulfilled",
       items: order.items?.map((item: any) => {
         const enrichedUnitPrice = enrichPrice(item.unit_price || 0, currencyCode);
         const enrichedItemTotal = enrichPrice(item.total || 0, currencyCode);
@@ -202,15 +202,15 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
           }) || [],
         };
       }) || [],
-      fulfillments: order.fulfillments?.map((f: any) => ({
-        id: f.id,
-        created_at: f.created_at,
-        items: f.items?.map((i: any) => ({
-          id: i.id,
-          quantity: i.quantity,
-          line_item_id: i.line_item_id,
-        })) || [],
-      })) || [],
+      // fulfillments: order.fulfillments?.map((f: any) => ({
+      //   id: f.id,
+      //   created_at: f.created_at,
+      //   items: f.items?.map((i: any) => ({
+      //     id: i.id,
+      //     quantity: i.quantity,
+      //     line_item_id: i.line_item_id,
+      //   })) || [],
+      // })) || [],
       created_at: order.created_at,
       updated_at: order.updated_at,
       canceled_at: order.canceled_at,
