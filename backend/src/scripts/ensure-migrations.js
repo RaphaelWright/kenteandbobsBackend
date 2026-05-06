@@ -29,7 +29,7 @@ try {
   // Sync database links
   console.log('Syncing database links...');
   try {
-    execSync('npx medusa db:sync-links', { 
+    execSync('npx medusa db:sync-links --y', { 
       cwd: MEDUSA_SERVER_PATH,
       stdio: 'inherit'
     });
