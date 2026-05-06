@@ -23,6 +23,7 @@
     "migrations:generate": "cd .medusa/server && medusa db:generate",
     "db:sync": "cd .medusa/server && medusa db:sync-links"
   },
+  
   "dependencies": {
     "@medusajs/admin-sdk": "2.10.2",
     "@medusajs/auth-emailpass": "^2.11.3",
@@ -70,8 +71,7 @@
   },
   "packageManager": "pnpm@9.10.0",
   "engines": {
-    "node": "22.x",
-    "npm": "10.x"
+    "node": "22.x"
   },
   "pnpm": {
     "overrides": {
