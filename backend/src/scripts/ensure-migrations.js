@@ -20,7 +20,7 @@ try {
 
   // Run migrations
   console.log('Running database migrations...');
-  execSync('npx medusa db:migrate', { 
+  execSync('npx medusa db:migrate --skip-links', { 
     cwd: MEDUSA_SERVER_PATH,
     stdio: 'inherit'
   });
