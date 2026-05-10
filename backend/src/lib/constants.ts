@@ -1,6 +1,6 @@
 import { loadEnv } from '@medusajs/framework/utils'
 
-import { assertValue } from 'utils/assert-value'
+import { assertValue } from '../utils/assert-value'
 
 loadEnv(process.env.NODE_ENV || 'development', process.cwd())
 
