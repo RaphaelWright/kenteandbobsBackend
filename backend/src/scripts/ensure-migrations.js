@@ -27,9 +27,10 @@ try {
   console.log('Database migrations completed successfully.');
 
   // Sync database links
-  console.log('Syncing database links...');
+  console.log('Skipping Syncing database links (interactive prompt causes Heroku build to hang)...');
+  /*
   try {
-    execSync('npx medusa db:sync-links --auto-accept', { 
+    execSync('npx medusa db:sync-links', { 
       cwd: MEDUSA_SERVER_PATH,
       stdio: 'inherit'
     });
@@ -37,6 +38,7 @@ try {
   } catch (error) {
     console.log('Database link sync skipped (this is normal for some setups).');
   }
+  */
 
 } catch (error) {
   console.error('Database setup failed:', error.message);
