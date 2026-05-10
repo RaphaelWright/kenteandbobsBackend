@@ -30,7 +30,7 @@ import {
   GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET,
   GOOGLE_CALLBACK_URL
-} from 'lib/constants';
+} from './src/lib/constants';
 
 loadEnv(process.env.NODE_ENV, process.cwd());
 
